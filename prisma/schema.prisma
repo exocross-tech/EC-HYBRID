@@ -1,0 +1,288 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String         @id @default(cuid())
+  name         String
+  email        String         @unique
+  passwordHash String
+  phone        String?
+  designation  String
+  department   String
+  dateJoined   DateTime       @default(now())
+  status       String         @default("ACTIVE") // ACTIVE, INACTIVE (soft delete)
+  role         String         @default("EMPLOYEE") // ADMIN, MANAGER, EMPLOYEE, HR
+  avatarUrl    String?
+  
+  createdClients Client[]     @relation("ClientCreatedBy")
+  assignedTasks  Task[]       @relation("TaskAssignedTo")
+  salary         Salary?
+  leaves         LeaveRequest[]
+  notifications  Notification[]
+  auditLogs      AuditLog[]
+
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model Client {
+  id          String    @id @default(cuid())
+  name        String
+  company     String
+  email       String
+  phone       String?
+  address     String?
+  clientType  String    @default("SERVICE") // PRODUCT, SERVICE, BOTH
+  leadSource  String?
+  status      String    @default("ACTIVE") // LEAD, ACTIVE, INACTIVE
+  isDeleted   Boolean   @default(false) // soft delete
+
+  createdById String?
+  createdBy   User?     @relation("ClientCreatedBy", fields: [createdById], references: [id])
+
+  projects    Project[]
+  orders      Order[]
+  invoices    Invoice[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Project {
+  id             String          @id @default(cuid())
+  name           String
+  description    String?
+  type           String          @default("SERVICE") // PRODUCT, SERVICE
+  status         String          @default("PLANNING") // PLANNING, ACTIVE, COMPLETED, ON_HOLD
+  budget         Float           @default(0)
+  billingType    String          @default("FIXED") // FIXED, HOURLY, SUBSCRIPTION
+  startDate      DateTime?
+  endDate        DateTime?
+
+  clientId       String?
+  client         Client?         @relation(fields: [clientId], references: [id])
+
+  tasks          Task[]
+  calendarEvents CalendarEvent[]
+  invoices       Invoice[]
+
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model Task {
+  id           String    @id @default(cuid())
+  title        String
+  description  String?
+  status       String    @default("TODO") // TODO, IN_PROGRESS, REVIEW, DONE
+  priority     String    @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  dueDate      DateTime?
+
+  projectId    String
+  project      Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  assignedToId String?
+  assignedTo   User?     @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model CalendarEvent {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  startDate   DateTime
+  endDate     DateTime
+  eventType   String    @default("MEETING") // MEETING, DEADLINE, LEAVE, PROJECT_MILESTONE
+  attendees   String?   // JSON list or comma separated names/emails
+
+  projectId   String?
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model LeaveRequest {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  leaveType       String    // SICK, CASUAL, UNPAID
+  startDate       DateTime
+  endDate         DateTime
+  reason          String?
+  status          String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  reviewerId      String?
+  reviewerComment String?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Salary {
+  id         String    @id @default(cuid())
+  userId     String    @unique
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  basicPay   Float     @default(0)
+  allowances Float     @default(0)
+  deductions Float     @default(0)
+  netSalary  Float     @default(0)
+
+  payslips   Payslip[]
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Payslip {
+  id            String    @id @default(cuid())
+  salaryId      String
+  salary        Salary    @relation(fields: [salaryId], references: [id], onDelete: Cascade)
+  month         Int
+  year          Int
+  basicPay      Float
+  allowances    Float
+  deductions    Float
+  netSalary     Float
+  paymentStatus String    @default("PAID") // PENDING, PAID
+  generatedAt   DateTime  @default(now())
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Product {
+  id            String    @id @default(cuid())
+  name          String
+  description   String?
+  price         Float
+  type          String    @default("ONE_TIME") // ONE_TIME, SUBSCRIPTION
+  stockQuantity Int       @default(0)
+  status        String    @default("ACTIVE") // ACTIVE, INACTIVE
+
+  orders        Order[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Order {
+  id            String    @id @default(cuid())
+  clientId      String
+  client        Client    @relation(fields: [clientId], references: [id])
+  productId     String
+  product       Product   @relation(fields: [productId], references: [id])
+  quantity      Int       @default(1)
+  amount        Float
+  orderDate     DateTime  @default(now())
+  status        String    @default("PENDING") // PENDING, PAID, DELIVERED
+  invoiceNumber String?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Invoice {
+  id            String    @id @default(cuid())
+  invoiceNumber String    @unique
+  clientId      String
+  client        Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  projectId     String?
+  project       Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  description   String?
+  amount        Float     // Subtotal in INR
+  tax           Float     @default(0) // GST 18% in INR
+  totalAmount   Float     // Amount + Tax in INR
+  dueDate       DateTime
+  issueDate     DateTime  @default(now())
+  status        String    @default("SENT") // DRAFT, SENT, PAID, OVERDUE
+  items         String?   // JSON string of line items [{ description, quantity, unitPrice, amount }]
+  paymentDate   DateTime?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model SocialPost {
+  id           String    @id @default(cuid())
+  platform     String    // LINKEDIN, X, FACEBOOK, INSTAGRAM
+  content      String
+  mediaUrl     String?
+  scheduledFor DateTime?
+  status       String    @default("DRAFT") // DRAFT, SCHEDULED, PUBLISHED, FAILED
+  publishedAt  DateTime?
+  likes        Int       @default(0)
+  shares       Int       @default(0)
+  clicks       Int       @default(0)
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("SYSTEM") // TASK_ASSIGNED, TASK_DUE, LEAVE_STATUS, CLIENT_ADDED, SYSTEM
+  link      String?
+  isRead    Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String   // CLIENT_CREATED, TASK_REASSIGNED, SALARY_CHANGED, LEAVE_APPROVED, etc.
+  details   String?
+
+  createdAt DateTime @default(now())
+}
+
+model OrganizationSettings {
+  id              String   @id @default("default")
+  companyName     String   @default("EC HYBRID")
+  legalEntityName String   @default("EC HYBRID Enterprise Solutions Pvt. Ltd.")
+  tagline         String   @default("All-in-One Enterprise Operations & Management Platform")
+  logoUrl         String   @default("/logo.png")
+  gstin           String   @default("29AABCE1234F1Z5")
+  pan             String   @default("AABCE1234F")
+  cin             String   @default("U72200KA2024PTC189201")
+  addressLine1    String   @default("742 Innovation Tech Corridor")
+  addressLine2    String   @default("Electronic City Phase 1")
+  city            String   @default("Bangalore")
+  state           String   @default("Karnataka")
+  postalCode      String   @default("560100")
+  country         String   @default("India")
+  officialEmail   String   @default("contact@echybrid.com")
+  financeEmail    String   @default("finance@echybrid.com")
+  phone           String   @default("+91 (80) 4129-8800")
+  website         String   @default("https://echybrid.com")
+
+  // Banking / Remittance Details for Invoices
+  bankName        String   @default("HDFC Bank Ltd.")
+  bankBranch      String   @default("Electronic City Branch")
+  accountName     String   @default("EC HYBRID ENTERPRISE SOLUTIONS PVT LTD")
+  accountNumber   String   @default("50200084920192")
+  ifscCode        String   @default("HDFC0000128")
+  upiId           String   @default("echybrid@hdfcbank")
+
+  // Tax & Payroll Configuration
+  defaultGSTRate      Float  @default(18.0) // 18% GST standard
+  taxRegime           String @default("NEW") // NEW or OLD
+  epfRate             Float  @default(12.0) // 12% EPF
+  standardDeduction   Float  @default(75000.0) // FY 2025-26 New Regime Standard Deduction
+
+  updatedAt       DateTime @updatedAt
+}
+
