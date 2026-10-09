@@ -817,23 +817,13 @@ export default function PayrollPage() {
       {isAdminOrHR && activeTab === "structures" && (
         <div className="space-y-4">
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
-            <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  Employee Salary Master Directory
-                </h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Pre-configured compensation packages. Updates here automatically compute net salary in INR and apply to subsequent payslips.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowAddStructureModal(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer shrink-0 self-start sm:self-auto"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Salary Structure</span>
-              </button>
+            <div className="p-4 border-b border-slate-100">
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                Employee Salary Master Directory
+              </h3>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Pre-configured compensation packages. Updates here automatically compute net salary in INR and apply to subsequent payslips.
+              </p>
             </div>
 
             <div className="overflow-x-auto">
@@ -967,23 +957,13 @@ export default function PayrollPage() {
 
           {/* Distributions Ledger Table */}
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
-            <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  Partner Disbursements & Profit Draws Ledger
-                </h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Historical log of all dividend withdrawals and milestone splits.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleOpenLogSplitModal()}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer shrink-0 self-start sm:self-auto"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Log New Split / Draw</span>
-              </button>
+            <div className="p-4 border-b border-slate-100">
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                Partner Disbursements & Profit Draws Ledger
+              </h3>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Historical log of all dividend withdrawals and milestone splits.
+              </p>
             </div>
 
             <div className="overflow-x-auto">
