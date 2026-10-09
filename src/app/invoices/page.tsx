@@ -1430,7 +1430,7 @@ export default function InvoicesPage() {
                         <input
                           type="number"
                           min="0"
-                          step="100"
+                          step="any"
                           placeholder="Rate (₹)"
                           value={itm.unitPrice}
                           onChange={(e) => handleCreateItemChange(idx, "unitPrice", e.target.value)}
@@ -1833,7 +1833,7 @@ export default function InvoicesPage() {
                         <input
                           type="number"
                           min="0"
-                          step="100"
+                          step="any"
                           placeholder="Rate (₹)"
                           value={itm.unitPrice}
                           onChange={(e) => handleEditItemChange(idx, "unitPrice", e.target.value)}

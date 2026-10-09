@@ -1123,8 +1123,8 @@ export default function PayrollPage() {
                 <input
                   type="number"
                   required
-                  min="1"
-                  step="100"
+                  min="0"
+                  step="any"
                   placeholder="e.g. 5000"
                   value={splitTotalAmount}
                   onChange={(e) => {
@@ -1156,7 +1156,7 @@ export default function PayrollPage() {
                       <input
                         type="number"
                         min="0"
-                        step="50"
+                        step="any"
                         placeholder="Share in ₹"
                         value={founderAllocations[f.id] || ""}
                         onChange={(e) =>
