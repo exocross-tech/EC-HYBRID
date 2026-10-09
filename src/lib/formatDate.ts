@@ -3,7 +3,7 @@
  * Enforces DD-MM-YYYY format across all EC HYBRID enterprise modules
  */
 
-export function formatDate(date: string | Date | null | undefined): string {
+export function formatDate(date: string | number | Date | null | undefined): string {
   if (!date) return "—";
   const d = new Date(date);
   if (isNaN(d.getTime())) return "—";
@@ -15,7 +15,7 @@ export function formatDate(date: string | Date | null | undefined): string {
   return `${day}-${month}-${year}`;
 }
 
-export function formatDateTime(date: string | Date | null | undefined): string {
+export function formatDateTime(date: string | number | Date | null | undefined): string {
   if (!date) return "—";
   const d = new Date(date);
   if (isNaN(d.getTime())) return "—";
@@ -27,7 +27,7 @@ export function formatDateTime(date: string | Date | null | undefined): string {
   return `${datePart} ${hours}:${mins}`;
 }
 
-export function toInputDateFormat(date: string | Date | null | undefined): string {
+export function toInputDateFormat(date: string | number | Date | null | undefined): string {
   if (!date) return "";
   const d = new Date(date);
   if (isNaN(d.getTime())) return "";

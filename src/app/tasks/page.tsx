@@ -19,6 +19,7 @@ import {
   Edit2,
   Trash2,
   ArrowRight,
+  ShieldAlert,
   Kanban,
   ListTodo,
   Loader2,
