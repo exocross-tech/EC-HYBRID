@@ -329,6 +329,14 @@ export default function InvoicesPage() {
     fetchOptions();
   }, [user]);
 
+  // 3-Second Floating Toast Auto-Dismiss (Requirement 3)
+  useEffect(() => {
+    if (successMsg) {
+      const timer = setTimeout(() => setSuccessMsg(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMsg]);
+
   // Real-time synchronization
   useRealtimeSync((event) => {
     if (event.type === "INVOICE_PAID" || event.type === "INVOICE_CREATED" || event.type === "DATA_MUTATED") {
@@ -718,10 +726,24 @@ export default function InvoicesPage() {
       });
 
       if (res.ok) {
+        // Optimistically update local invoices state so metrics & table update instantly!
+        setInvoices((prev) =>
+          prev.map((inv) => {
+            if (inv.id === installmentModalInvoice.id) {
+              return {
+                ...inv,
+                paidAmount: newTotalPaid,
+                payments: JSON.stringify(updatedPayments),
+                status: newStatus as any,
+                paymentDate: newStatus === "PAID" ? new Date().toISOString() : inv.paymentDate,
+              };
+            }
+            return inv;
+          })
+        );
         setSuccessMsg(`Payment of ${formatINR(amt)} logged successfully! Status updated to ${newStatus}`);
         setInstallmentModalInvoice(null);
         fetchInvoices();
-        setTimeout(() => setSuccessMsg(null), 4000);
       } else {
         const data = await res.json();
         setErrorMsg(data.error || "Failed to record payment installment");
@@ -758,10 +780,16 @@ export default function InvoicesPage() {
     return true;
   });
 
-  // Calculate totals
+  // Calculate totals dynamically taking into account partial installment payments!
   const totalBilled = invoices.reduce((sum, i) => sum + i.totalAmount, 0);
-  const totalCollected = invoices.filter((i) => i.status === "PAID").reduce((sum, i) => sum + i.totalAmount, 0);
-  const totalOutstanding = invoices.filter((i) => i.status !== "PAID").reduce((sum, i) => sum + i.totalAmount, 0);
+  const totalCollected = invoices.reduce((sum, i) => {
+    const paid = i.paidAmount !== undefined && i.paidAmount !== null ? i.paidAmount : (i.status === "PAID" ? i.totalAmount : 0);
+    return sum + paid;
+  }, 0);
+  const totalOutstanding = invoices.reduce((sum, i) => {
+    const paid = i.paidAmount !== undefined && i.paidAmount !== null ? i.paidAmount : (i.status === "PAID" ? i.totalAmount : 0);
+    return sum + Math.max(0, i.totalAmount - paid);
+  }, 0);
   const overdueCount = invoices.filter((i) => i.status === "OVERDUE" || (i.status === "SENT" && new Date(i.dueDate) < new Date())).length;
 
   // HR Restriction Guard
@@ -787,17 +815,25 @@ export default function InvoicesPage() {
       title="Invoices & Quotations"
       subtitle="Quotations, client billing statements, and payment tracking in Indian Rupees (₹)"
     >
-      {/* Messages */}
+      {/* Floating Compact Success Notification (Requirement 3: 3-Second Floating Toast) */}
       {successMsg && (
-        <div className="mb-4 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl flex items-center gap-3 text-xs font-medium shadow-xs">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+        <div className="fixed top-6 right-6 z-50 flex items-center gap-2.5 px-4 py-2.5 bg-emerald-900/90 text-white rounded-xl shadow-xl backdrop-blur-md border border-emerald-500/30 text-xs font-semibold animate-in fade-in slide-in-from-top-3 duration-300 pointer-events-auto">
+          <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
+          </div>
           <span>{successMsg}</span>
         </div>
       )}
+
       {errorMsg && (
-        <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-800 px-4 py-3 rounded-xl flex items-center gap-3 text-xs font-medium shadow-xs">
-          <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+        <div className="fixed top-6 right-6 z-50 flex items-center gap-2.5 px-4 py-2.5 bg-rose-900/90 text-white rounded-xl shadow-xl backdrop-blur-md border border-rose-500/30 text-xs font-semibold animate-in fade-in slide-in-from-top-3 duration-300 pointer-events-auto">
+          <div className="w-5 h-5 rounded-full bg-rose-500/20 flex items-center justify-center shrink-0">
+            <AlertTriangle className="w-3.5 h-3.5 text-rose-300" />
+          </div>
           <span>{errorMsg}</span>
+          <button onClick={() => setErrorMsg(null)} className="ml-2 hover:opacity-80">
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 
@@ -956,8 +992,18 @@ export default function InvoicesPage() {
                       +{formatINR(inv.tax)}
                     </td>
 
-                    <td className="py-3 px-4 text-right font-black text-indigo-950 whitespace-nowrap">
-                      {formatINR(inv.totalAmount)}
+                    <td className="py-3 px-4 text-right whitespace-nowrap">
+                      <div className="font-black text-indigo-950">{formatINR(inv.totalAmount)}</div>
+                      {inv.paidAmount !== undefined && inv.paidAmount > 0 ? (
+                        <div className="text-[10px] mt-0.5 space-y-0.5">
+                          <span className="text-emerald-600 font-bold block">Paid: {formatINR(inv.paidAmount)}</span>
+                          {inv.totalAmount > inv.paidAmount && (
+                            <span className="text-rose-500 font-semibold block">Due: {formatINR(inv.totalAmount - inv.paidAmount)}</span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-[10px] text-slate-400 mt-0.5">Unpaid</div>
+                      )}
                     </td>
 
                     <td className="py-3 px-4 text-center whitespace-nowrap">
@@ -2095,7 +2141,14 @@ export default function InvoicesPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-slate-700 font-semibold mb-1">Payment Date</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-slate-700 font-semibold text-xs">Payment Date</label>
+                        {installmentDate && (
+                          <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">
+                            {formatDate(installmentDate)}
+                          </span>
+                        )}
+                      </div>
                       <input
                         type="date"
                         required
@@ -2142,6 +2195,16 @@ export default function InvoicesPage() {
                       placeholder="e.g. Initial advance 50% milestone payment"
                       className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                     />
+                  </div>
+
+                  <div className="bg-indigo-50/80 border border-indigo-100 rounded-lg p-2 flex items-center justify-between text-[11px] text-indigo-800">
+                    <span>💡 Once logged, founders (CEO & Co-CEO) can split this revenue in <strong>Salary & Payroll</strong>.</span>
+                    <a
+                      href="/payroll"
+                      className="font-bold underline text-indigo-900 hover:text-indigo-700 ml-2 shrink-0 cursor-pointer"
+                    >
+                      Split in Payroll →
+                    </a>
                   </div>
 
                   <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">

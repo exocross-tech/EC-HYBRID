@@ -977,7 +977,10 @@ export function buildModernTechPDFDoc(invoice: InvoicePDFData, org?: any): jsPDF
 
   // Client details
   const clientComp = toDetails.company || invoice.client.company || invoice.client.name;
+  const clientContact = toDetails.contactPerson || (invoice.client.company ? invoice.client.name : "");
   const clientAddr = toDetails.address || invoice.client.address || "Anna Nagar, Tamil Nadu";
+  const clientPhone = toDetails.phone || invoice.client.phone || "";
+  const clientEmail = toDetails.email || invoice.client.email || "";
 
   // Project headline
   const projectHeadline = custom.projectHeadline || invoice.project?.name || invoice.description || "Billing Software – Full Stack Web Application";
@@ -988,16 +991,37 @@ export function buildModernTechPDFDoc(invoice: InvoicePDFData, org?: any): jsPDF
     try {
       doc.addImage(CYBER_HEADER_BG, "JPEG", 0, 0, pageWidth, 42);
     } catch {
-      doc.setFillColor(11, 17, 32);
+      doc.setFillColor(8, 12, 22);
       doc.rect(0, 0, pageWidth, 42, "F");
     }
 
-    // Dynamic Org Logo in banner if uploaded
+    // Paint a clean dark slate/navy rect over the left side of the banner
+    // to cleanly mask out the baked-in template logo from the background image!
+    doc.setFillColor(8, 12, 22); // Exactly matches the deep background color
+    doc.rect(0, 0, 70, 42, "F");
+
+    // Dynamic Org Logo in banner if uploaded, or fallback to MINIMALIST_LOGO
+    let logoRendered = false;
     if (org?.logoUrl && typeof org.logoUrl === "string" && org.logoUrl.startsWith("data:image/")) {
       try {
         const format = org.logoUrl.includes("png") ? "PNG" : "JPEG";
-        doc.addImage(org.logoUrl, format, margin, 12, 18, 18);
+        doc.addImage(org.logoUrl, format, margin, 11, 20, 20);
+        logoRendered = true;
       } catch {}
+    }
+
+    if (!logoRendered) {
+      try {
+        doc.addImage(MINIMALIST_LOGO, "PNG", margin, 11, 20, 20);
+      } catch {
+        // Fallback vector EC block
+        doc.setFillColor(47, 107, 255);
+        doc.roundedRect(margin, 11, 20, 20, 2, 2, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.text("EC", margin + 10, 23, { align: "center" });
+      }
     }
 
     // Cyan circuit accent line beneath banner
@@ -1126,6 +1150,8 @@ export function buildModernTechPDFDoc(invoice: InvoicePDFData, org?: any): jsPDF
 
   // Box 2: PREPARED FOR
   const addr2X = margin + addrW + 6;
+  doc.setDrawColor(226, 232, 240);
+  doc.setFillColor(255, 255, 255);
   doc.rect(addr2X, addrY, addrW, addrH, "FD");
   doc.setFillColor(0, 194, 178); // Cyan top bar
   doc.rect(addr2X, addrY, addrW, 1.5, "F");
@@ -1139,10 +1165,28 @@ export function buildModernTechPDFDoc(invoice: InvoicePDFData, org?: any): jsPDF
   doc.setTextColor(17, 24, 39);
   doc.text(clientComp, addr2X + 4, addrY + 10);
 
+  let currentClientY = addrY + 14;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
   doc.setTextColor(75, 85, 99);
-  doc.text(clientAddr, addr2X + 4, addrY + 14.5);
+
+  if (clientContact) {
+    doc.text(`Attn: ${clientContact}`, addr2X + 4, currentClientY);
+    currentClientY += 3.8;
+  }
+
+  if (clientAddr) {
+    const wrappedAddr = doc.splitTextToSize(clientAddr, addrW - 8);
+    for (let i = 0; i < Math.min(wrappedAddr.length, 2); i++) {
+      doc.text(wrappedAddr[i], addr2X + 4, currentClientY);
+      currentClientY += 3.8;
+    }
+  }
+
+  const clientContactLine = [clientPhone, clientEmail].filter(Boolean).join("  |  ");
+  if (clientContactLine) {
+    doc.text(clientContactLine, addr2X + 4, currentClientY);
+  }
 
   // 4. PROJECT Section Icon & Title (y = 106mm)
   const projSecY = 106;

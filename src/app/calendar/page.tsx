@@ -81,6 +81,16 @@ export default function CalendarPage() {
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Auto-dismiss success notification after 3 seconds
+  useEffect(() => {
+    if (actionSuccess) {
+      const timer = setTimeout(() => {
+        setActionSuccess(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [actionSuccess]);
+
   const isAdmin = user?.role === "ADMIN";
   const isManager = user?.role === "MANAGER";
   const canSchedule = isAdmin || isManager;
@@ -314,14 +324,17 @@ export default function CalendarPage() {
       title="Shared Organization Calendar"
       subtitle="Interactive 7-day month view: meetings, deliverable deadlines, project milestones, and approved leaves"
     >
-      {/* Alerts */}
+      {/* Floating Success Toast (Compact, Non-Intrusive, 3s Auto-dismiss) */}
       {actionSuccess && (
-        <div className="mb-4 p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            <span>{actionSuccess}</span>
+        <div className="fixed top-6 right-6 z-50 max-w-sm w-auto animate-in fade-in slide-in-from-top-4 duration-200 shadow-2xl rounded-2xl bg-white border border-emerald-200 p-3.5 flex items-center gap-3 backdrop-blur-md">
+          <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-4 h-4" />
           </div>
-          <button onClick={() => setActionSuccess(null)} className="text-emerald-600 hover:text-emerald-900">
+          <p className="text-xs font-semibold text-slate-800 pr-2">{actionSuccess}</p>
+          <button
+            onClick={() => setActionSuccess(null)}
+            className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+          >
             <X className="w-3.5 h-3.5" />
           </button>
         </div>

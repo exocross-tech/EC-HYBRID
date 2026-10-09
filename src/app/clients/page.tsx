@@ -27,6 +27,7 @@ import {
   FileText,
   Calendar,
   Layers,
+  Eye,
 } from "lucide-react";
 
 interface Client {
@@ -78,7 +79,21 @@ export default function ClientsPage() {
   const [projectsModalClient, setProjectsModalClient] = useState<Client | null>(null);
   const [confirmDeleteClient, setConfirmDeleteClient] = useState<Client | null>(null);
   const [confirmSoftDeleteClient, setConfirmSoftDeleteClient] = useState<Client | null>(null);
+  const [viewingClient, setViewingClient] = useState<Client | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+
+  // Auto-dismiss success notification after 3 seconds
+  useEffect(() => {
+    if (actionSuccess) {
+      const timer = setTimeout(() => {
+        setActionSuccess(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [actionSuccess]);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -103,8 +118,6 @@ export default function ClientsPage() {
     leadSource: "",
     status: "ACTIVE",
   });
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
   const isAdmin = user?.role === "ADMIN";
   const isManager = user?.role === "MANAGER";
@@ -278,14 +291,17 @@ export default function ClientsPage() {
       title="Client Engagements & CRM"
       subtitle="B2B client directory, connected project pipelines, and account records"
     >
-      {/* Alerts */}
+      {/* Floating Success Toast (Compact, Non-Intrusive, 3s Auto-dismiss) */}
       {actionSuccess && (
-        <div className="mb-4 p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center justify-between animate-in fade-in">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>{actionSuccess}</span>
+        <div className="fixed top-6 right-6 z-50 max-w-sm w-auto animate-in fade-in slide-in-from-top-4 duration-200 shadow-2xl rounded-2xl bg-white border border-emerald-200 p-3.5 flex items-center gap-3 backdrop-blur-md">
+          <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-4 h-4" />
           </div>
-          <button onClick={() => setActionSuccess(null)} className="text-emerald-600 hover:text-emerald-900 cursor-pointer">
+          <p className="text-xs font-semibold text-slate-800 pr-2">{actionSuccess}</p>
+          <button
+            onClick={() => setActionSuccess(null)}
+            className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+          >
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -509,6 +525,15 @@ export default function ClientsPage() {
                       {/* Actions */}
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          {/* View Complete Profile (Requirement 1) */}
+                          <button
+                            onClick={() => setViewingClient(client)}
+                            className="p-1.5 rounded-md hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 transition-colors cursor-pointer"
+                            title="View Complete Client Profile"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+
                           {canManageClients && (
                             <button
                               onClick={() => handleOpenEdit(client)}
@@ -644,6 +669,15 @@ export default function ClientsPage() {
                     Source: {client.leadSource || "Direct"}
                   </span>
                   <div className="flex items-center gap-1">
+                    {/* View Complete Profile (Requirement 1) */}
+                    <button
+                      onClick={() => setViewingClient(client)}
+                      className="p-1.5 rounded-md hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 transition-colors cursor-pointer"
+                      title="View Complete Client Profile"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                    </button>
+
                     {canManageClients && (
                       <button
                         onClick={() => handleOpenEdit(client)}
@@ -752,6 +786,169 @@ export default function ClientsPage() {
                 className="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 font-medium rounded-lg text-xs cursor-pointer"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: View Client Complete Profile (Requirement 1) */}
+      {viewingClient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-3 sm:p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-2xl w-full max-h-[90dvh] flex flex-col overflow-hidden animate-in zoom-in-95">
+            {/* Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 to-indigo-50/30 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-600/10 text-indigo-600 flex items-center justify-center font-bold text-base shrink-0 border border-indigo-200/50">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-base text-slate-900">{viewingClient.company}</h3>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                        viewingClient.status === "ACTIVE"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : viewingClient.status === "INACTIVE"
+                          ? "bg-slate-100 text-slate-600 border-slate-200"
+                          : "bg-blue-50 text-blue-700 border-blue-200"
+                      }`}
+                    >
+                      {viewingClient.status}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500">Contact Person: {viewingClient.name}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setViewingClient(null)}
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-4 sm:p-6 overflow-y-auto space-y-4 text-xs flex-1">
+              {/* Key Contact Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+                  <span className="text-[10px] uppercase font-semibold text-slate-400 block">Direct Contact</span>
+                  <div className="flex items-center gap-2 text-slate-800 font-medium">
+                    <Mail className="w-3.5 h-3.5 text-indigo-500" />
+                    <a href={`mailto:${viewingClient.email}`} className="hover:underline hover:text-indigo-600 truncate">
+                      {viewingClient.email}
+                    </a>
+                  </div>
+                  {viewingClient.phone && (
+                    <div className="flex items-center gap-2 text-slate-800 font-medium">
+                      <Phone className="w-3.5 h-3.5 text-indigo-500" />
+                      <a href={`tel:${viewingClient.phone}`} className="hover:underline hover:text-indigo-600">
+                        {viewingClient.phone}
+                      </a>
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+                  <span className="text-[10px] uppercase font-semibold text-slate-400 block">Classification & Source</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Client Type:</span>
+                    <span className="font-bold text-slate-800 bg-white border border-slate-200 px-2 py-0.5 rounded text-[11px]">
+                      {viewingClient.clientType}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Lead Source:</span>
+                    <span className="font-medium text-slate-700">{viewingClient.leadSource || "Direct"}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Headquarters / Address Card (fully visible, dynamic wrap) */}
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-slate-700 font-bold">
+                  <MapPin className="w-4 h-4 text-indigo-600" />
+                  <span>Headquarters & Complete Address</span>
+                </div>
+                <p className="text-slate-700 whitespace-pre-wrap leading-relaxed pl-5 font-normal">
+                  {viewingClient.address || "No address specified on record."}
+                </p>
+              </div>
+
+              {/* Administrative Notes Card */}
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-slate-700 font-bold">
+                  <FileText className="w-4 h-4 text-indigo-600" />
+                  <span>Client Notes & Records</span>
+                </div>
+                <p className="text-slate-700 whitespace-pre-wrap leading-relaxed pl-5 font-normal">
+                  {viewingClient.notes || "No notes entered for this client."}
+                </p>
+              </div>
+
+              {/* Connected Projects Matrix */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                    <FolderGit2 className="w-4 h-4 text-indigo-600" />
+                    <span>Connected Projects ({viewingClient.projects.length})</span>
+                  </span>
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    Total Pipeline: {formatINR(viewingClient.projects.reduce((acc, p) => acc + (p.budget || 0), 0))}
+                  </span>
+                </div>
+
+                {viewingClient.projects.length === 0 ? (
+                  <p className="text-center py-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-400">
+                    No active projects associated with this client.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {viewingClient.projects.map((proj) => (
+                      <div key={proj.id} className="p-3 rounded-xl bg-white border border-slate-200 shadow-xs space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-slate-900 text-xs">{proj.name}</span>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                              proj.status === "ACTIVE"
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                : "bg-slate-100 text-slate-600 border-slate-200"
+                            }`}
+                          >
+                            {proj.status}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-[11px] pt-1.5 border-t border-slate-100 text-slate-600">
+                          <div>
+                            <span className="text-slate-400 block text-[10px] uppercase">Budget</span>
+                            <span className="font-bold text-indigo-700">{formatINR(proj.budget)}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[10px] uppercase">Billing Type</span>
+                            <span className="font-medium text-slate-800">{proj.billingType || "Fixed"}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[10px] uppercase">Timeline</span>
+                            <span className="font-medium text-slate-800">
+                              {proj.startDate ? formatDate(proj.startDate) : "—"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex justify-end shrink-0">
+              <button
+                onClick={() => setViewingClient(null)}
+                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-xs cursor-pointer shadow-xs"
+              >
+                Close Profile
               </button>
             </div>
           </div>

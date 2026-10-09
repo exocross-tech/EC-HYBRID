@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { formatINR } from "@/lib/formatCurrency";
+import { formatDate } from "@/lib/formatDate";
 import { downloadPayslipPDF, PayslipPDFData } from "@/lib/pdfGenerator";
 
 interface Payslip {
@@ -79,13 +80,42 @@ export default function PayrollPage() {
   const isPersonalView = user?.role === "EMPLOYEE" || user?.role === "MANAGER";
 
   // State
-  const [activeTab, setActiveTab] = useState<"payslips" | "structures">("payslips");
+  const [activeTab, setActiveTab] = useState<"payslips" | "structures" | "distributions">("payslips");
   const [payslips, setPayslips] = useState<Payslip[]>([]);
   const [salaries, setSalaries] = useState<SalaryStructure[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Founder Profit Draws & Distributions State (Requirement 5)
+  const [distributions, setDistributions] = useState<any[]>([]);
+  const [distributionFounders, setDistributionFounders] = useState<any[]>([]);
+  const [paidInvoices, setPaidInvoices] = useState<any[]>([]);
+  const [distributionMetrics, setDistributionMetrics] = useState({
+    totalCollectedRevenue: 0,
+    totalDisbursed: 0,
+    retainedReserves: 0,
+  });
+
+  // Modal for logging revenue split
+  const [showLogSplitModal, setShowLogSplitModal] = useState(false);
+  const [selectedSplitInvoiceId, setSelectedSplitInvoiceId] = useState("");
+  const [splitTotalAmount, setSplitTotalAmount] = useState("");
+  const [splitDate, setSplitDate] = useState(new Date().toISOString().slice(0, 10));
+  const [splitMethod, setSplitMethod] = useState("UPI");
+  const [splitReference, setSplitReference] = useState("");
+  const [splitNotes, setSplitNotes] = useState("");
+  const [founderAllocations, setFounderAllocations] = useState<{ [userId: string]: string }>({});
+  const [savingSplit, setSavingSplit] = useState(false);
+
+  // 3-Second Floating Toast Auto-Dismiss (Requirement 3)
+  useEffect(() => {
+    if (successMsg) {
+      const timer = setTimeout(() => setSuccessMsg(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMsg]);
 
   // Filters
   const [filterMonth, setFilterMonth] = useState<string>("all");
@@ -130,9 +160,10 @@ export default function PayrollPage() {
       }
 
       if (isAdminOrHR) {
-        const [salariesRes, empRes] = await Promise.all([
+        const [salariesRes, empRes, distRes] = await Promise.all([
           fetch("/api/payroll/salaries"),
           fetch("/api/employees"),
+          fetch("/api/payroll/distributions"),
         ]);
         if (salariesRes.ok) {
           const sData = await salariesRes.json();
@@ -141,6 +172,15 @@ export default function PayrollPage() {
         if (empRes.ok) {
           const eData = await empRes.json();
           setEmployees(eData.employees || []);
+        }
+        if (distRes.ok) {
+          const dData = await distRes.json();
+          setDistributions(dData.distributions || []);
+          setDistributionFounders(dData.founders || []);
+          setPaidInvoices(dData.paidInvoices || []);
+          if (dData.metrics) {
+            setDistributionMetrics(dData.metrics);
+          }
         }
       }
     } catch (err: any) {
@@ -153,6 +193,116 @@ export default function PayrollPage() {
   useEffect(() => {
     fetchData();
   }, [user]);
+
+  // Founder Split Handlers (Requirement 5)
+  const handleOpenLogSplitModal = (prefillInvoice?: any) => {
+    setSelectedSplitInvoiceId(prefillInvoice ? prefillInvoice.id : "");
+    const amountToSplit = prefillInvoice ? (prefillInvoice.paidAmount || prefillInvoice.totalAmount) : "";
+    setSplitTotalAmount(amountToSplit ? String(amountToSplit) : "");
+    setSplitDate(new Date().toISOString().slice(0, 10));
+    setSplitMethod("UPI");
+    setSplitReference(prefillInvoice ? `INV-${prefillInvoice.invoiceNumber}` : "");
+    setSplitNotes(prefillInvoice ? `Revenue split from invoice ${prefillInvoice.invoiceNumber}` : "");
+
+    if (distributionFounders.length > 0 && amountToSplit) {
+      const share = Math.round(Number(amountToSplit) / distributionFounders.length);
+      const allocs: { [id: string]: string } = {};
+      distributionFounders.forEach((f) => {
+        allocs[f.id] = String(share);
+      });
+      setFounderAllocations(allocs);
+    } else {
+      const allocs: { [id: string]: string } = {};
+      distributionFounders.forEach((f) => {
+        allocs[f.id] = "";
+      });
+      setFounderAllocations(allocs);
+    }
+    setShowLogSplitModal(true);
+  };
+
+  const handleInvoiceSelectForSplit = (invId: string) => {
+    setSelectedSplitInvoiceId(invId);
+    if (!invId) return;
+    const inv = paidInvoices.find((i) => i.id === invId);
+    if (inv) {
+      const amt = inv.paidAmount > 0 ? inv.paidAmount : inv.totalAmount;
+      setSplitTotalAmount(String(amt));
+      setSplitReference(`INV-${inv.invoiceNumber}`);
+      setSplitNotes(`Project milestone split from invoice ${inv.invoiceNumber}`);
+
+      if (distributionFounders.length > 0) {
+        const share = Math.round(amt / distributionFounders.length);
+        const allocs: { [id: string]: string } = {};
+        distributionFounders.forEach((f) => {
+          allocs[f.id] = String(share);
+        });
+        setFounderAllocations(allocs);
+      }
+    }
+  };
+
+  const handleQuickSplit = (type: "50-50" | "equal") => {
+    const total = parseFloat(splitTotalAmount) || 0;
+    if (total <= 0 || distributionFounders.length === 0) return;
+    const share = Math.round(total / distributionFounders.length);
+    const allocs: { [id: string]: string } = {};
+    distributionFounders.forEach((f) => {
+      allocs[f.id] = String(share);
+    });
+    setFounderAllocations(allocs);
+  };
+
+  const handleSubmitSplit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (savingSplit) return;
+    setSavingSplit(true);
+    setErrorMsg(null);
+
+    try {
+      const distArray = Object.entries(founderAllocations)
+        .map(([userId, amt]) => ({
+          userId,
+          amount: parseFloat(amt) || 0,
+        }))
+        .filter((d) => d.amount > 0);
+
+      if (distArray.length === 0) {
+        setErrorMsg("Please allocate at least one founder amount greater than zero");
+        setSavingSplit(false);
+        return;
+      }
+
+      const inv = paidInvoices.find((i) => i.id === selectedSplitInvoiceId);
+
+      const res = await fetch("/api/payroll/distributions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invoiceId: selectedSplitInvoiceId || undefined,
+          projectId: inv?.project?.id || undefined,
+          distributions: distArray,
+          paymentMethod: splitMethod,
+          distributionDate: splitDate,
+          reference: splitReference,
+          notes: splitNotes,
+        }),
+      });
+
+      if (res.ok) {
+        setSuccessMsg("Founder revenue split logged successfully!");
+        setShowLogSplitModal(false);
+        fetchData();
+      } else {
+        const err = await res.json();
+        setErrorMsg(err.error || "Failed to log distribution");
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "Network error");
+    } finally {
+      setSavingSplit(false);
+    }
+  };
 
   // Handle Salary Structure Edit
   const handleOpenEdit = (salary: SalaryStructure) => {
@@ -306,18 +456,25 @@ export default function PayrollPage() {
           : "Compensation structures, automated monthly payslip generation, and corporate payroll accounting"
       }
     >
-      {/* Alert Messages */}
+      {/* Floating Compact Success Notification (Requirement 3: 3-Second Floating Toast) */}
       {successMsg && (
-        <div className="mb-4 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl flex items-center gap-3 text-xs font-medium shadow-xs">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+        <div className="fixed top-6 right-6 z-50 flex items-center gap-2.5 px-4 py-2.5 bg-emerald-900/90 text-white rounded-xl shadow-xl backdrop-blur-md border border-emerald-500/30 text-xs font-semibold animate-in fade-in slide-in-from-top-3 duration-300 pointer-events-auto">
+          <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
+          </div>
           <span>{successMsg}</span>
         </div>
       )}
 
       {errorMsg && (
-        <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-800 px-4 py-3 rounded-xl flex items-center gap-3 text-xs font-medium shadow-xs">
-          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+        <div className="fixed top-6 right-6 z-50 flex items-center gap-2.5 px-4 py-2.5 bg-rose-900/90 text-white rounded-xl shadow-xl backdrop-blur-md border border-rose-500/30 text-xs font-semibold animate-in fade-in slide-in-from-top-3 duration-300 pointer-events-auto">
+          <div className="w-5 h-5 rounded-full bg-rose-500/20 flex items-center justify-center shrink-0">
+            <AlertCircle className="w-3.5 h-3.5 text-rose-300" />
+          </div>
           <span>{errorMsg}</span>
+          <button onClick={() => setErrorMsg(null)} className="ml-2 hover:opacity-80">
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 
@@ -425,6 +582,19 @@ export default function PayrollPage() {
                 <span>Salary Structures ({salaries.length})</span>
               </div>
             </button>
+            <button
+              onClick={() => setActiveTab("distributions")}
+              className={`px-3 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all shrink-0 cursor-pointer ${
+                activeTab === "distributions"
+                  ? "bg-white text-emerald-700 shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Founder Profit Splits & Draws ({distributions.length})</span>
+              </div>
+            </button>
           </div>
         ) : (
           <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
@@ -435,7 +605,23 @@ export default function PayrollPage() {
 
         {/* Action Buttons */}
         <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
-          {isAdminOrHR && (
+          {isAdminOrHR && activeTab === "distributions" ? (
+            <button
+              onClick={() => handleOpenLogSplitModal()}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Log Revenue Split / Founder Draw</span>
+            </button>
+          ) : isAdminOrHR && activeTab === "structures" ? (
+            <button
+              onClick={() => setShowAddStructureModal(true)}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Salary Structure</span>
+            </button>
+          ) : isAdminOrHR ? (
             <button
               onClick={() => setShowGenerateModal(true)}
               className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer"
@@ -443,7 +629,7 @@ export default function PayrollPage() {
               <Plus className="w-3.5 h-3.5" />
               <span>Run Monthly Payroll</span>
             </button>
-          )}
+          ) : null}
           <button
             onClick={fetchData}
             title="Refresh list"
@@ -716,6 +902,352 @@ export default function PayrollPage() {
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: FOUNDER PROFIT DRAWS & REVENUE SPLITS (Requirement 5) */}
+      {isAdminOrHR && activeTab === "distributions" && (
+        <div className="space-y-5">
+          {/* Top 3 Summary Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-500">Total Collected Project Revenue</span>
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                  <IndianRupee className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-2xl font-bold text-slate-900 mt-2">
+                {formatINR(distributionMetrics.totalCollectedRevenue)}
+              </p>
+              <p className="text-[11px] text-emerald-600 mt-1 font-medium">Real-time sync from invoice receipts</p>
+            </div>
+
+            <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-500">Disbursed to Founders & Partners</span>
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                  <TrendingUp className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-2xl font-bold text-slate-900 mt-2">
+                {formatINR(distributionMetrics.totalDisbursed)}
+              </p>
+              <p className="text-[11px] text-indigo-600 mt-1 font-medium">{distributions.length} profit splits logged</p>
+            </div>
+
+            <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-500">Retained Business Reserves</span>
+                <div className="w-8 h-8 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center">
+                  <Building className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-2xl font-bold text-slate-900 mt-2">
+                {formatINR(distributionMetrics.retainedReserves)}
+              </p>
+              <p className="text-[11px] text-teal-600 mt-1 font-medium">Available company operating balance</p>
+            </div>
+          </div>
+
+          {/* Context Banner */}
+          <div className="bg-indigo-50/70 border border-indigo-200/80 rounded-xl p-4 flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0 mt-0.5">
+              <IndianRupee className="w-4 h-4" />
+            </div>
+            <div className="text-xs">
+              <h4 className="font-bold text-indigo-950 mb-0.5">Custom Founder Revenue-Sharing Model</h4>
+              <p className="text-indigo-800 leading-relaxed">
+                As founders (CEO & Co-CEO), profit distributions are tied directly to incoming client project payments rather than rigid monthly employee salary structures.
+                When client payments or milestones are logged, use this ledger to record your custom splits and partner draws.
+              </p>
+            </div>
+          </div>
+
+          {/* Distributions Ledger Table */}
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+            <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  Partner Disbursements & Profit Draws Ledger
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Historical log of all dividend withdrawals and milestone splits.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleOpenLogSplitModal()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer shrink-0 self-start sm:self-auto"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Log New Split / Draw</span>
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-slate-600 min-w-[750px]">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[10px]">
+                  <tr>
+                    <th className="py-3 px-4">Distribution Date</th>
+                    <th className="py-3 px-4">Founder / Partner</th>
+                    <th className="py-3 px-4">Source Project / Invoice</th>
+                    <th className="py-3 px-4 text-right">Amount Disbursed</th>
+                    <th className="py-3 px-4">Mode & Reference</th>
+                    <th className="py-3 px-4">Notes</th>
+                    <th className="py-3 px-4 text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {distributions.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-10 text-center text-slate-400">
+                        <IndianRupee className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                        <p className="font-semibold text-slate-600">No founder distributions logged yet</p>
+                        <p className="text-[11px] text-slate-400 mt-1">
+                          Click "Log Revenue Split / Founder Draw" above to record milestone splits between founders.
+                        </p>
+                      </td>
+                    </tr>
+                  ) : (
+                    distributions.map((dist) => (
+                      <tr key={dist.id} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="py-3 px-4 whitespace-nowrap font-medium text-slate-800">
+                          {formatDate(dist.distributionDate)}
+                        </td>
+
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <div className="font-bold text-slate-900">{dist.user.name}</div>
+                          <div className="text-[11px] text-indigo-600 font-medium">{dist.user.designation || dist.user.role}</div>
+                        </td>
+
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          {dist.invoice ? (
+                            <div>
+                              <span className="font-semibold text-slate-800">Invoice {dist.invoice.invoiceNumber}</span>
+                              {dist.project && <span className="text-[11px] text-slate-400 block">{dist.project.name}</span>}
+                            </div>
+                          ) : dist.project ? (
+                            <span className="font-semibold text-slate-800">{dist.project.name}</span>
+                          ) : (
+                            <span className="text-slate-500">General Partner Draw</span>
+                          )}
+                        </td>
+
+                        <td className="py-3 px-4 text-right font-black text-emerald-600 whitespace-nowrap text-sm">
+                          {formatINR(dist.amount, true)}
+                        </td>
+
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <div className="font-semibold text-slate-800">{dist.paymentMethod}</div>
+                          {dist.reference && <div className="text-[10px] text-slate-400">{dist.reference}</div>}
+                        </td>
+
+                        <td className="py-3 px-4 text-slate-600 max-w-[200px] truncate" title={dist.notes || ""}>
+                          {dist.notes || "—"}
+                        </td>
+
+                        <td className="py-3 px-4 text-center whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <CheckCircle2 className="w-2.5 h-2.5" />
+                            COMPLETED
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* LOG REVENUE SPLIT / FOUNDER DRAW MODAL (Requirement 5) */}
+      {showLogSplitModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full max-h-[92dvh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between shrink-0">
+              <div>
+                <h3 className="text-sm font-bold flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-emerald-400" />
+                  <span>Log Founder Revenue Split / Partner Draw</span>
+                </h3>
+                <p className="text-xs text-slate-300 mt-0.5">
+                  Distribute collected project payments among founders & executives
+                </p>
+              </div>
+              <button
+                onClick={() => setShowLogSplitModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSubmitSplit} className="p-4 sm:p-6 space-y-4 text-xs overflow-y-auto flex-1">
+              {/* Select Source Payment */}
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">Source Payment / Invoice</label>
+                <select
+                  value={selectedSplitInvoiceId}
+                  onChange={(e) => handleInvoiceSelectForSplit(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-indigo-500 font-medium"
+                >
+                  <option value="">-- General Profit Draw (Not linked to specific invoice) --</option>
+                  {paidInvoices.map((inv) => (
+                    <option key={inv.id} value={inv.id}>
+                      {inv.invoiceNumber} &bull; {inv.client?.company || inv.client?.name} (Collected: {formatINR(inv.paidAmount > 0 ? inv.paidAmount : inv.totalAmount)})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Total Amount to Split */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-slate-700 font-semibold">Total Amount to Split (₹ INR)</label>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleQuickSplit("50-50")}
+                      className="text-[10px] bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded cursor-pointer transition-colors"
+                    >
+                      50% / 50% Equal Split
+                    </button>
+                  </div>
+                </div>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  step="100"
+                  placeholder="e.g. 5000"
+                  value={splitTotalAmount}
+                  onChange={(e) => {
+                    setSplitTotalAmount(e.target.value);
+                    const val = parseFloat(e.target.value);
+                    if (val > 0 && distributionFounders.length > 0) {
+                      const share = Math.round(val / distributionFounders.length);
+                      const allocs: { [id: string]: string } = {};
+                      distributionFounders.forEach((f) => {
+                        allocs[f.id] = String(share);
+                      });
+                      setFounderAllocations(allocs);
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-indigo-500 font-bold text-sm text-slate-900"
+                />
+              </div>
+
+              {/* Individual Founder Share Inputs */}
+              <div className="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                <span className="font-bold text-slate-800 block text-xs">Founder Breakdown</span>
+                {distributionFounders.map((f) => (
+                  <div key={f.id} className="flex items-center justify-between gap-3 p-2 bg-white rounded-lg border border-slate-200">
+                    <div>
+                      <span className="font-bold text-slate-900 block">{f.name}</span>
+                      <span className="text-[10px] text-slate-500">{f.designation || f.role}</span>
+                    </div>
+                    <div className="w-36">
+                      <input
+                        type="number"
+                        min="0"
+                        step="50"
+                        placeholder="Share in ₹"
+                        value={founderAllocations[f.id] || ""}
+                        onChange={(e) =>
+                          setFounderAllocations({ ...founderAllocations, [f.id]: e.target.value })
+                        }
+                        className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-right font-bold text-slate-900 focus:outline-indigo-500"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Payment Date & Mode */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-slate-700 font-semibold">Distribution Date</label>
+                    {splitDate && (
+                      <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1 rounded">
+                        {formatDate(splitDate)}
+                      </span>
+                    )}
+                  </div>
+                  <input
+                    type="date"
+                    required
+                    value={splitDate}
+                    onChange={(e) => setSplitDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-indigo-500 text-slate-800 font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-semibold mb-1">Payment Method</label>
+                  <select
+                    value={splitMethod}
+                    onChange={(e) => setSplitMethod(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-indigo-500 font-medium"
+                  >
+                    <option value="UPI">UPI (GooglePay / PhonePe)</option>
+                    <option value="Bank Transfer">Bank Transfer (NEFT / IMPS)</option>
+                    <option value="Cash">Cash Disbursement</option>
+                    <option value="Cheque">Bank Cheque</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Reference */}
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">UTR / Transaction Ref</label>
+                <input
+                  type="text"
+                  placeholder="e.g. HDFC-UPI-4928190"
+                  value={splitReference}
+                  onChange={(e) => setSplitReference(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-indigo-500 text-slate-800 font-medium"
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">Notes / Description</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Milestone 1 revenue split (₹2,500 each to CEO & Co-CEO)"
+                  value={splitNotes}
+                  onChange={(e) => setSplitNotes(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-indigo-500 text-slate-800 font-medium"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
+                <button
+                  type="button"
+                  disabled={savingSplit}
+                  onClick={() => setShowLogSplitModal(false)}
+                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-medium transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingSplit}
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-xs transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {savingSplit ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <IndianRupee className="w-3.5 h-3.5" />}
+                  <span>Save Distribution Split</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

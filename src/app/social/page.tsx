@@ -100,6 +100,14 @@ export default function SocialPage() {
     fetchPosts();
   }, [user]);
 
+  // 3-Second Floating Toast Auto-Dismiss (Requirement 3)
+  useEffect(() => {
+    if (successMsg) {
+      const timer = setTimeout(() => setSuccessMsg(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMsg]);
+
   // Handle Post Creation
   const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -183,17 +191,25 @@ export default function SocialPage() {
       title="Social Media & Marketing Hub"
       subtitle="Multi-channel campaign simulation, live post broadcasting, and automated engagement analytics (Phase 4)"
     >
-      {/* Alert Messages */}
+      {/* Floating Compact Success Notification (Requirement 3: 3-Second Floating Toast) */}
       {successMsg && (
-        <div className="mb-4 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl flex items-center gap-3 text-xs font-medium shadow-xs">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+        <div className="fixed top-6 right-6 z-50 flex items-center gap-2.5 px-4 py-2.5 bg-emerald-900/90 text-white rounded-xl shadow-xl backdrop-blur-md border border-emerald-500/30 text-xs font-semibold animate-in fade-in slide-in-from-top-3 duration-300 pointer-events-auto">
+          <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
+          </div>
           <span>{successMsg}</span>
         </div>
       )}
+
       {errorMsg && (
-        <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-800 px-4 py-3 rounded-xl flex items-center gap-3 text-xs font-medium shadow-xs">
-          <X className="w-4 h-4 text-rose-600 shrink-0" />
+        <div className="fixed top-6 right-6 z-50 flex items-center gap-2.5 px-4 py-2.5 bg-rose-900/90 text-white rounded-xl shadow-xl backdrop-blur-md border border-rose-500/30 text-xs font-semibold animate-in fade-in slide-in-from-top-3 duration-300 pointer-events-auto">
+          <div className="w-5 h-5 rounded-full bg-rose-500/20 flex items-center justify-center shrink-0">
+            <X className="w-3.5 h-3.5 text-rose-300" />
+          </div>
           <span>{errorMsg}</span>
+          <button onClick={() => setErrorMsg(null)} className="ml-2 hover:opacity-80">
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 

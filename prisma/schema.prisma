@@ -26,6 +26,7 @@ model User {
   leaves         LeaveRequest[]
   notifications  Notification[]
   auditLogs      AuditLog[]
+  founderDistributions FounderDistribution[]
 
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
@@ -73,6 +74,7 @@ model Project {
   tasks          Task[]
   calendarEvents CalendarEvent[]
   invoices       Invoice[]
+  founderDistributions FounderDistribution[]
 
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -209,6 +211,7 @@ model Invoice {
   paymentDate   DateTime?
   payments      String?   // JSON string of installments [{ id, amount, date, method, reference, note }]
   paidAmount    Float     @default(0)
+  founderDistributions FounderDistribution[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -288,5 +291,24 @@ model OrganizationSettings {
   standardDeduction   Float  @default(75000.0) // FY 2025-26 New Regime Standard Deduction
 
   updatedAt       DateTime @updatedAt
+}
+
+model FounderDistribution {
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invoiceId        String?
+  invoice          Invoice?  @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  projectId        String?
+  project          Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  amount           Float     // Amount disbursed in INR
+  paymentMethod    String    @default("UPI") // UPI, BANK_TRANSFER, CASH, CHEQUE
+  distributionDate DateTime  @default(now())
+  reference        String?   // UTR / Transaction reference
+  notes            String?
+  status           String    @default("COMPLETED") // COMPLETED, PENDING
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 }
 
