@@ -38,7 +38,10 @@ export function MultiAssigneeSelect({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const selectedUsers = employees.filter((e) => selectedIds.includes(e.id));
+  // Maintain exact order of selectedIds so the first selected member is always the Lead
+  const selectedUsers = selectedIds
+    .map((id) => employees.find((e) => e.id === id))
+    .filter((e): e is Employee => Boolean(e));
 
   const filteredEmployees = employees.filter((e) => {
     const q = search.toLowerCase();
@@ -71,6 +74,11 @@ export function MultiAssigneeSelect({
     onChange([]);
   };
 
+  const handleSetLead = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    onChange([id, ...selectedIds.filter((item) => item !== id)]);
+  };
+
   return (
     <div ref={containerRef} className="relative w-full">
       {/* Trigger Area with Selected Chips */}
@@ -87,11 +95,15 @@ export function MultiAssigneeSelect({
           selectedUsers.map((user, idx) => (
             <span
               key={user.id}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-800 font-medium text-[11px] shadow-xs animate-in fade-in duration-100"
+              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-800 font-medium text-[11px] shadow-xs animate-in fade-in duration-100"
             >
               {idx === 0 && selectedUsers.length > 1 && (
-                <span title="Primary / Lead Assignee" className="inline-flex shrink-0">
-                  <Star className="w-2.5 h-2.5 text-amber-500 fill-amber-500" />
+                <span
+                  title="Designated Lead / Primary Task Owner"
+                  className="text-[9px] bg-amber-50 text-amber-800 font-bold px-1 py-0.2 rounded border border-amber-200 flex items-center gap-0.5 shrink-0"
+                >
+                  <Star className="w-2 h-2 text-amber-500 fill-amber-500" />
+                  Lead
                 </span>
               )}
               <span className="truncate max-w-[110px]">{user.name}</span>
@@ -153,7 +165,7 @@ export function MultiAssigneeSelect({
           </div>
 
           {/* Member Options List */}
-          <div className="max-h-52 overflow-y-auto p-1 divide-y divide-slate-50 text-xs">
+          <div className="max-h-44 overflow-y-auto p-1 divide-y divide-slate-50 text-xs">
             {filteredEmployees.length === 0 ? (
               <div className="p-4 text-center text-slate-400 text-xs">No team members match "{search}"</div>
             ) : (
@@ -182,15 +194,7 @@ export function MultiAssigneeSelect({
                         {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                       </div>
                       <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="truncate">{emp.name}</span>
-                          {isLead && (
-                            <span className="text-[9px] bg-amber-100 text-amber-800 font-bold px-1 rounded flex items-center gap-0.5">
-                              <Star className="w-2 h-2 fill-amber-500 text-amber-500" />
-                              Lead
-                            </span>
-                          )}
-                        </div>
+                        <span className="truncate block font-medium">{emp.name}</span>
                         {emp.department && (
                           <span className="text-[10px] text-slate-400 block truncate">
                             {emp.department}
@@ -198,6 +202,27 @@ export function MultiAssigneeSelect({
                         )}
                       </div>
                     </div>
+
+                    {/* Lead status and switch option */}
+                    {isSelected && selectedIds.length > 1 && (
+                      <div className="shrink-0 ml-2">
+                        {isLead ? (
+                          <span className="text-[9px] bg-amber-50 text-amber-800 font-bold px-1.5 py-0.5 rounded border border-amber-200 flex items-center gap-1">
+                            <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
+                            Lead
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => handleSetLead(emp.id, e)}
+                            className="text-[9px] text-slate-500 hover:text-amber-800 hover:bg-amber-50 px-1.5 py-0.5 rounded border border-slate-200 hover:border-amber-300 font-medium transition-colors cursor-pointer"
+                            title="Set this person as primary lead assignee"
+                          >
+                            Set Lead
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })
