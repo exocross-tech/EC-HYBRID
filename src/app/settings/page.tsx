@@ -216,10 +216,10 @@ export default function SettingsPage() {
       )}
 
       {/* Tab Navigation (2 Tabs only) */}
-      <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl w-fit mb-6">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5 sm:gap-2 bg-slate-100 p-1 rounded-xl w-full sm:w-fit mb-6">
         <button
           onClick={() => setActiveTab("profile")}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+          className={`flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
             activeTab === "profile"
               ? "bg-white text-indigo-700 shadow-xs"
               : "text-slate-600 hover:text-slate-900"
@@ -230,7 +230,7 @@ export default function SettingsPage() {
         </button>
         <button
           onClick={() => setActiveTab("banking")}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+          className={`flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
             activeTab === "banking"
               ? "bg-white text-indigo-700 shadow-xs"
               : "text-slate-600 hover:text-slate-900"
@@ -608,18 +608,18 @@ export default function SettingsPage() {
           )}
 
           {/* Action Save Button */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-4 border-t border-slate-200">
             <button
               type="button"
               onClick={fetchSettings}
-              className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-semibold transition-colors"
+              className="w-full sm:w-auto px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-semibold transition-colors cursor-pointer text-center"
             >
               Reset Changes
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-xs transition-colors"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer"
             >
               {saving ? (
                 <>

@@ -411,8 +411,8 @@ export default function InvoicesPage() {
       </div>
 
       {/* Action and Filter Bar */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 flex-1 min-w-[220px]">
+      <div className="bg-white rounded-xl border border-slate-200 p-3.5 sm:p-4 shadow-xs mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2 w-full sm:flex-1 min-w-0 sm:min-w-[220px] bg-slate-50 sm:bg-transparent px-3 py-1.5 sm:p-0 rounded-lg sm:rounded-none border sm:border-0 border-slate-200">
           <Search className="w-4 h-4 text-slate-400 shrink-0" />
           <input
             type="text"
@@ -423,13 +423,13 @@ export default function InvoicesPage() {
           />
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg text-xs">
+        <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg text-xs overflow-x-auto">
             {["ALL", "PAID", "SENT", "OVERDUE"].map((st) => (
               <button
                 key={st}
                 onClick={() => setStatusFilter(st)}
-                className={`px-3 py-1 rounded-md font-semibold text-[11px] transition-all ${
+                className={`px-2.5 sm:px-3 py-1 rounded-md font-semibold text-[11px] transition-all shrink-0 ${
                   statusFilter === st ? "bg-white text-indigo-700 shadow-xs" : "text-slate-600 hover:text-slate-900"
                 }`}
               >
@@ -438,30 +438,32 @@ export default function InvoicesPage() {
             ))}
           </div>
 
-          {isAdminOrManager && (
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Create Invoice</span>
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {isAdminOrManager && (
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Create Invoice</span>
+              </button>
+            )}
 
-          <button
-            onClick={fetchInvoices}
-            className="p-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl transition-colors"
-            title="Refresh"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-          </button>
+            <button
+              onClick={fetchInvoices}
+              className="p-1.5 sm:p-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl transition-colors cursor-pointer"
+              title="Refresh"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Invoices Table */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-600">
+          <table className="w-full text-left text-xs text-slate-600 min-w-[760px]">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[10px]">
               <tr>
                 <th className="py-3 px-4">Invoice #</th>
@@ -587,10 +589,10 @@ export default function InvoicesPage() {
 
       {/* CREATE INVOICE MODAL */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-2xl w-full max-h-[90dvh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             {/* Modal Header */}
-            <div className="bg-slate-900 text-white p-5 flex items-center justify-between shrink-0">
+            <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between shrink-0">
               <div>
                 <h3 className="text-base font-bold">Create New Tax Invoice</h3>
                 <p className="text-xs text-slate-300 mt-0.5">
@@ -606,8 +608,8 @@ export default function InvoicesPage() {
             </div>
 
             {/* Modal Body */}
-            <form onSubmit={handleCreateInvoice} className="p-6 overflow-y-auto space-y-4 text-xs flex-1">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <form onSubmit={handleCreateInvoice} className="p-4 sm:p-6 overflow-y-auto space-y-4 text-xs flex-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="block text-slate-700 font-semibold mb-1">Select Client *</label>
                   <select
@@ -660,7 +662,7 @@ export default function InvoicesPage() {
                   <button
                     type="button"
                     onClick={handleAddItem}
-                    className="flex items-center gap-1 text-[11px] text-indigo-600 hover:text-indigo-800 font-bold"
+                    className="flex items-center gap-1 text-[11px] text-indigo-600 hover:text-indigo-800 font-bold cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Add Item</span>
@@ -669,43 +671,45 @@ export default function InvoicesPage() {
 
                 <div className="space-y-2">
                   {formData.items.map((itm, idx) => (
-                    <div key={idx} className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                    <div key={idx} className="flex flex-col sm:flex-row sm:items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
                       <input
                         type="text"
                         placeholder="Description (e.g. Cloud Infrastructure Milestone)"
                         required
                         value={itm.description}
                         onChange={(e) => handleItemChange(idx, "description", e.target.value)}
-                        className="flex-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                        className="w-full sm:flex-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
                       />
-                      <input
-                        type="number"
-                        min="1"
-                        placeholder="Qty"
-                        value={itm.quantity}
-                        onChange={(e) => handleItemChange(idx, "quantity", e.target.value)}
-                        className="w-16 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-center"
-                      />
-                      <input
-                        type="number"
-                        min="0"
-                        step="1000"
-                        placeholder="Price (₹)"
-                        value={itm.unitPrice}
-                        onChange={(e) => handleItemChange(idx, "unitPrice", e.target.value)}
-                        className="w-28 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-right"
-                      />
-                      <div className="w-24 text-right font-bold text-slate-800 text-xs">
-                        {formatINR(itm.amount)}
+                      <div className="flex items-center gap-2 justify-between sm:justify-start">
+                        <input
+                          type="number"
+                          min="1"
+                          placeholder="Qty"
+                          value={itm.quantity}
+                          onChange={(e) => handleItemChange(idx, "quantity", e.target.value)}
+                          className="w-16 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-center"
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          step="1000"
+                          placeholder="Price (₹)"
+                          value={itm.unitPrice}
+                          onChange={(e) => handleItemChange(idx, "unitPrice", e.target.value)}
+                          className="w-28 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-right"
+                        />
+                        <div className="w-24 text-right font-bold text-slate-800 text-xs truncate">
+                          {formatINR(itm.amount)}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveItem(idx)}
+                          disabled={formData.items.length <= 1}
+                          className="p-1 text-slate-400 hover:text-rose-600 disabled:opacity-30 cursor-pointer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveItem(idx)}
-                        disabled={formData.items.length <= 1}
-                        className="p-1 text-slate-400 hover:text-rose-600 disabled:opacity-30"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
                     </div>
                   ))}
                 </div>
@@ -781,12 +785,12 @@ export default function InvoicesPage() {
 
       {/* VIEW INVOICE MODAL */}
       {selectedInvoice && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="bg-slate-900 text-white p-5 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full max-h-[90dvh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between shrink-0">
               <div>
                 <span className="text-xs uppercase tracking-wider text-indigo-400 font-bold">Tax Invoice</span>
-                <h3 className="text-lg font-bold mt-0.5">{selectedInvoice.invoiceNumber}</h3>
+                <h3 className="text-base sm:text-lg font-bold mt-0.5">{selectedInvoice.invoiceNumber}</h3>
               </div>
               <button
                 onClick={() => setSelectedInvoice(null)}
@@ -796,8 +800,8 @@ export default function InvoicesPage() {
               </button>
             </div>
 
-            <div className="p-6 space-y-4 text-xs">
-              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 grid grid-cols-2 gap-2 text-slate-600">
+            <div className="p-4 sm:p-6 space-y-4 text-xs overflow-y-auto flex-1">
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-600">
                 <div>
                   <span className="text-[10px] text-slate-400 uppercase font-semibold">Client Name</span>
                   <p className="font-bold text-slate-900">{selectedInvoice.client.name}</p>
@@ -837,14 +841,14 @@ export default function InvoicesPage() {
                 </div>
               </div>
 
-              <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex items-center justify-between">
+              <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3.5 sm:p-4 flex items-center justify-between">
                 <div>
                   <span className="text-[10px] text-indigo-700 font-bold uppercase tracking-wider">Status</span>
                   <p className="font-bold text-indigo-950 mt-0.5">{selectedInvoice.status}</p>
                 </div>
                 <button
                   onClick={() => handleDownloadPDF(selectedInvoice)}
-                  className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors"
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>Download Tax PDF</span>
@@ -857,17 +861,17 @@ export default function InvoicesPage() {
 
       {/* TEMPLATE CHOOSER MODAL */}
       {templateModalInvoice && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-2xl w-full overflow-hidden animate-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-2xl w-full max-h-[90dvh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
             {/* Modal Header */}
-            <div className="bg-slate-900 text-white p-5 flex items-center justify-between">
+            <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-400">
-                  <FileText className="w-5 h-5" />
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-400 shrink-0">
+                  <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold">Choose Invoice PDF Template</h3>
-                  <p className="text-xs text-slate-300 mt-0.5">
+                  <h3 className="text-sm sm:text-base font-bold">Choose Invoice PDF Template</h3>
+                  <p className="text-[11px] sm:text-xs text-slate-300 mt-0.5">
                     Select a layout format to download for {templateModalInvoice.invoiceNumber}
                   </p>
                 </div>
@@ -881,7 +885,7 @@ export default function InvoicesPage() {
             </div>
 
             {/* Template Selection Cards */}
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto flex-1">
               {/* Option 1: Modern Exocross Tech */}
               <div className="relative border-2 border-indigo-500/60 hover:border-indigo-600 rounded-xl p-4 bg-gradient-to-b from-indigo-50/50 to-white flex flex-col justify-between transition-all hover:shadow-md group">
                 <div className="absolute top-3 right-3">
@@ -976,11 +980,11 @@ export default function InvoicesPage() {
             </div>
 
             {/* Modal Footer note */}
-            <div className="bg-slate-50 px-6 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-              <span>Both templates respect GST settings and format all values in Indian Rupees (INR).</span>
+            <div className="bg-slate-50 px-4 py-3 sm:px-6 sm:py-3 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-slate-500 shrink-0">
+              <span className="text-[11px] sm:text-xs">Both templates respect GST settings and format all values in Indian Rupees (INR).</span>
               <button
                 onClick={() => setTemplateModalInvoice(null)}
-                className="font-medium text-slate-600 hover:text-slate-900 cursor-pointer"
+                className="font-medium text-slate-600 hover:text-slate-900 cursor-pointer text-xs"
               >
                 Cancel
               </button>

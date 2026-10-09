@@ -196,12 +196,12 @@ export default function LeavePage() {
       )}
 
       {/* Control Bar */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
+      <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-xs mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+            className="flex-1 sm:flex-none px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
           >
             <option value="">All Review Statuses</option>
             <option value="PENDING">Pending Review</option>
@@ -212,7 +212,7 @@ export default function LeavePage() {
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+            className="flex-1 sm:flex-none px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
           >
             <option value="">All Leave Types</option>
             <option value="CASUAL">Casual Leave</option>
@@ -224,7 +224,7 @@ export default function LeavePage() {
         {/* Any employee can submit a leave request */}
         <button
           onClick={() => setIsRequestModalOpen(true)}
-          className="px-3.5 py-1.5 gradient-brand text-white font-medium text-xs rounded-lg hover:opacity-95 transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+          className="w-full sm:w-auto justify-center px-3.5 py-1.5 gradient-brand text-white font-medium text-xs rounded-lg hover:opacity-95 transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>Submit Leave Request</span>
@@ -244,7 +244,7 @@ export default function LeavePage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
+            <table className="w-full text-left border-collapse text-xs min-w-[650px]">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider">
                   <th className="py-3 px-4">Employee</th>
@@ -356,9 +356,9 @@ export default function LeavePage() {
 
       {/* Modal: Request Leave */}
       {isRequestModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden">
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-3 sm:p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full max-h-[90dvh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
               <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                 <Clock className="w-4 h-4 text-indigo-600" />
                 Submit Leave Application
@@ -368,7 +368,7 @@ export default function LeavePage() {
               </button>
             </div>
 
-            <form onSubmit={handleRequestLeave} className="p-5 space-y-3.5 text-xs">
+            <form onSubmit={handleRequestLeave} className="p-4 sm:p-5 space-y-3.5 text-xs overflow-y-auto flex-1">
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">Leave Type</label>
                 <select
@@ -382,7 +382,7 @@ export default function LeavePage() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Start Date</label>
                   <input
@@ -417,7 +417,7 @@ export default function LeavePage() {
                 />
               </div>
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsRequestModalOpen(false)}
@@ -439,9 +439,9 @@ export default function LeavePage() {
 
       {/* Modal: Review Leave (Admin / Manager) */}
       {isReviewModalOpen && selectedLeave && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden">
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-3 sm:p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full max-h-[90dvh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
               <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-indigo-600" />
                 Review Leave: {selectedLeave.user.name} ({reviewAction})
@@ -451,7 +451,7 @@ export default function LeavePage() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmitReview} className="p-5 space-y-3.5 text-xs">
+            <form onSubmit={handleSubmitReview} className="p-4 sm:p-5 space-y-3.5 text-xs overflow-y-auto flex-1">
               <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 space-y-1">
                 <p>
                   <strong>Dates:</strong> {new Date(selectedLeave.startDate).toLocaleDateString()} to{" "}
@@ -484,7 +484,7 @@ export default function LeavePage() {
                 </p>
               )}
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsReviewModalOpen(false)}

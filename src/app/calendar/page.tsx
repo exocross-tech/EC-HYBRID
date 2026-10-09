@@ -334,46 +334,48 @@ export default function CalendarPage() {
       )}
 
       {/* Control & Navigation Bar */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs mb-5 flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-xs mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         {/* Month Navigation */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handlePrevMonth}
-            className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors"
-            title="Previous Month"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <button
-            onClick={handleToday}
-            className="px-3 py-1 text-xs font-semibold rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors"
-          >
-            Today
-          </button>
-          <button
-            onClick={handleNextMonth}
-            className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors"
-            title="Next Month"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-          <h2 className="text-base font-black text-slate-900 ml-2">
+        <div className="flex items-center justify-between sm:justify-start gap-2">
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={handlePrevMonth}
+              className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors"
+              title="Previous Month"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleToday}
+              className="px-2.5 sm:px-3 py-1 text-xs font-semibold rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors"
+            >
+              Today
+            </button>
+            <button
+              onClick={handleNextMonth}
+              className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors"
+              title="Next Month"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+          <h2 className="text-sm sm:text-base font-black text-slate-900 ml-1 sm:ml-2">
             {MONTH_NAMES[month]} {year}
           </h2>
         </div>
 
         {/* Filters, View Toggle & Actions */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+            className="flex-1 sm:flex-none px-2.5 sm:px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
           >
             <option value="">All Categories</option>
             <option value="MEETING">Meetings</option>
-            <option value="PROJECT_MILESTONE">Project Milestones</option>
+            <option value="PROJECT_MILESTONE">Milestones</option>
             <option value="DEADLINE">Deadlines</option>
-            <option value="LEAVE">Approved Leaves</option>
+            <option value="LEAVE">Leaves</option>
           </select>
 
           {/* View Mode Toggle */}
@@ -413,7 +415,7 @@ export default function CalendarPage() {
                 ).padStart(2, "0")}`;
                 handleOpenAddForDate(nowStr);
               }}
-              className="px-3.5 py-1.5 gradient-brand text-white font-medium text-xs rounded-lg hover:opacity-95 transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              className="w-full sm:w-auto px-3.5 py-1.5 gradient-brand text-white font-medium text-xs rounded-lg hover:opacity-95 transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Schedule Event</span>
@@ -430,9 +432,10 @@ export default function CalendarPage() {
         </div>
       ) : viewMode === "grid" ? (
         /* ================= 7-COLUMN MONTH CALENDAR GRID ================= */
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          {/* Day of Week Headers (Sun - Sat) */}
-          <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50 text-center text-[11px] font-bold uppercase tracking-wider text-slate-600 py-2.5">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-x-auto">
+          <div className="min-w-[640px] sm:min-w-0">
+            {/* Day of Week Headers (Sun - Sat) */}
+            <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50 text-center text-[11px] font-bold uppercase tracking-wider text-slate-600 py-2.5">
             {WEEKDAYS.map((dayName, idx) => (
               <div
                 key={dayName}
@@ -523,6 +526,7 @@ export default function CalendarPage() {
               </div>
             ))}
           </div>
+          </div>
         </div>
       ) : (
         /* ================= AGENDA / LIST VIEW ================= */
@@ -597,9 +601,9 @@ export default function CalendarPage() {
 
       {/* ================= MODAL: EVENT DETAILS ================= */}
       {selectedEvent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-3 sm:p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full max-h-[90dvh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
               <span
                 className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${getEventBadgeClass(
                   selectedEvent.eventType
@@ -615,7 +619,7 @@ export default function CalendarPage() {
               </button>
             </div>
 
-            <div className="p-5 space-y-3.5 text-xs">
+            <div className="p-4 sm:p-5 space-y-3.5 text-xs overflow-y-auto flex-1">
               <h3 className="text-base font-bold text-slate-900">{selectedEvent.title}</h3>
 
               {selectedEvent.description && (
@@ -694,9 +698,9 @@ export default function CalendarPage() {
 
       {/* ================= MODAL: ALL EVENTS ON DAY ================= */}
       {dayEventsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-3 sm:p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full max-h-[90dvh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
               <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                 <CalendarIcon className="w-4 h-4 text-indigo-600" />
                 <span>Events for {new Date(dayEventsModal.date).toLocaleDateString()}</span>
@@ -709,7 +713,7 @@ export default function CalendarPage() {
               </button>
             </div>
 
-            <div className="p-4 max-h-[60vh] overflow-y-auto space-y-2.5">
+            <div className="p-4 overflow-y-auto flex-1 space-y-2.5">
               {dayEventsModal.events.map((ev) => (
                 <div
                   key={ev.id}
@@ -733,7 +737,7 @@ export default function CalendarPage() {
               ))}
             </div>
 
-            <div className="p-3 border-t border-slate-100 bg-slate-50 flex justify-end">
+            <div className="p-3 border-t border-slate-100 bg-slate-50 flex justify-end shrink-0">
               <button
                 onClick={() => setDayEventsModal(null)}
                 className="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold rounded-lg text-xs transition-colors"
@@ -747,9 +751,9 @@ export default function CalendarPage() {
 
       {/* ================= MODAL: SCHEDULE EVENT ================= */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-3 sm:p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full max-h-[90dvh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
               <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                 <CalendarIcon className="w-4 h-4 text-indigo-600" />
                 Schedule Organization Calendar Event
@@ -759,96 +763,98 @@ export default function CalendarPage() {
               </button>
             </div>
 
-            <form onSubmit={handleCreateEvent} className="p-5 space-y-3.5 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Event Title</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="e.g. Apex FinTech Bi-Weekly Architecture Sync"
-                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Description</label>
-                <textarea
-                  rows={2}
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Agenda, video call URL, or meeting notes..."
-                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleCreateEvent} className="p-4 sm:p-5 space-y-3.5 text-xs overflow-y-auto flex-1 flex flex-col justify-between">
+              <div className="space-y-3.5">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Event Type</label>
-                  <select
-                    value={formData.eventType}
-                    onChange={(e) => setFormData({ ...formData, eventType: e.target.value as any })}
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  >
-                    <option value="MEETING">Meeting</option>
-                    <option value="PROJECT_MILESTONE">Project Milestone</option>
-                    <option value="DEADLINE">Deadline</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Linked Project</label>
-                  <select
-                    value={formData.projectId}
-                    onChange={(e) => setFormData({ ...formData, projectId: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  >
-                    <option value="">General (No Project Link)</option>
-                    {projects.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Start Date & Time</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Event Title</label>
                   <input
-                    type="datetime-local"
+                    type="text"
                     required
-                    value={formData.startDate}
-                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    placeholder="e.g. Apex FinTech Bi-Weekly Architecture Sync"
                     className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                   />
                 </div>
+
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">End Date & Time</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Description</label>
+                  <textarea
+                    rows={2}
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="Agenda, video call URL, or meeting notes..."
+                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Event Type</label>
+                    <select
+                      value={formData.eventType}
+                      onChange={(e) => setFormData({ ...formData, eventType: e.target.value as any })}
+                      className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    >
+                      <option value="MEETING">Meeting</option>
+                      <option value="PROJECT_MILESTONE">Project Milestone</option>
+                      <option value="DEADLINE">Deadline</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Linked Project</label>
+                    <select
+                      value={formData.projectId}
+                      onChange={(e) => setFormData({ ...formData, projectId: e.target.value })}
+                      className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    >
+                      <option value="">General (No Project Link)</option>
+                      {projects.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Start Date & Time</label>
+                    <input
+                      type="datetime-local"
+                      required
+                      value={formData.startDate}
+                      onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                      className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">End Date & Time</label>
+                    <input
+                      type="datetime-local"
+                      required
+                      value={formData.endDate}
+                      onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                      className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Attendees (Comma-separated emails)</label>
                   <input
-                    type="datetime-local"
-                    required
-                    value={formData.endDate}
-                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                    type="text"
+                    value={formData.attendees}
+                    onChange={(e) => setFormData({ ...formData, attendees: e.target.value })}
+                    placeholder="alex@echybrid.com, marcus@echybrid.com"
                     className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Attendees (Comma-separated emails)</label>
-                <input
-                  type="text"
-                  value={formData.attendees}
-                  onChange={(e) => setFormData({ ...formData, attendees: e.target.value })}
-                  placeholder="alex@echybrid.com, marcus@echybrid.com"
-                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                />
-              </div>
-
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}

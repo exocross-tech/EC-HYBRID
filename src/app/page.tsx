@@ -106,7 +106,7 @@ export default function DashboardPage() {
       subtitle={`EC HYBRID Operations Dashboard • Role: ${user.role} • Dept: ${user.department}`}
     >
       {/* 1. Dynamic Role Welcome Banner (Gradient Banner & Text Retained; Buttons Removed for all roles) */}
-      <div className="gradient-brand rounded-2xl p-6 text-white shadow-lg mb-6 relative overflow-hidden">
+      <div className="gradient-brand rounded-2xl p-4 sm:p-6 text-white shadow-lg mb-5 sm:mb-6 relative overflow-hidden">
         <div className="relative z-10 max-w-2xl">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold text-indigo-100 mb-3">
             <Sparkles className="w-3.5 h-3.5 text-indigo-300" />
@@ -375,13 +375,13 @@ export default function DashboardPage() {
       {user.role === "ADMIN" && (
         <div className="space-y-6">
           {/* Refresh Action & Title */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
               Executive Telemetry & Graphical Analytics
             </h3>
             <button
               onClick={() => { loadStats(false); }}
-              className="inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-2xs transition-colors"
+              className="w-fit inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-2xs transition-colors cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5 text-indigo-600" />
               <span>Refresh Analytics</span>

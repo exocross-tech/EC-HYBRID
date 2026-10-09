@@ -20,6 +20,7 @@ import {
   Settings,
   LogOut,
   ShieldCheck,
+  X,
 } from "lucide-react";
 
 interface NavItem {
@@ -30,7 +31,12 @@ interface NavItem {
   badge?: string;
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  mobileOpen?: boolean;
+  onCloseMobile?: () => void;
+}
+
+export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
@@ -119,100 +125,160 @@ export function Sidebar() {
     },
   ];
 
-  return (
-    <aside className="w-64 bg-white border-r border-slate-200 flex flex-col h-screen shrink-0 select-none shadow-sm overflow-hidden">
-      {/* Brand Header */}
-      <div className="h-16 flex items-center px-5 border-b border-slate-200 gap-3">
-        <div className="relative w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center p-0.5 bg-slate-100 shadow-sm border border-slate-200">
-          <Image
-            src="/logo.png"
-            alt="EC HYBRID Logo"
-            width={32}
-            height={32}
-            className="object-contain"
-            priority
-          />
-        </div>
-        <div className="flex flex-col">
-          <span className="font-bold text-base tracking-tight text-slate-900 leading-tight">
-            EC HYBRID
-          </span>
-          <span className="text-[11px] font-medium text-slate-500">
-            Operations Platform
-          </span>
-        </div>
+  const renderNavLinks = () => (
+    <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      <div className="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+        Main Navigation
       </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        <div className="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-          Main Navigation
-        </div>
-        {navigation
-          .filter((item) => item.show)
-          .map((item) => {
-            const isActive = pathname === item.href;
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                  isActive
-                    ? "bg-indigo-50 text-indigo-700 shadow-xs border border-indigo-100"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon
-                    className={`w-4 h-4 ${
-                      isActive ? "text-indigo-600" : "text-slate-400"
-                    }`}
-                  />
-                  <span>{item.name}</span>
-                </div>
-                {item.badge && (
-                  <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-normal">
-                    {item.badge}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-      </nav>
-
-      {/* User Footer */}
-      <div className="p-3 border-t border-slate-200 bg-slate-50/50">
-        <div className="p-2.5 rounded-lg bg-white border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2 overflow-hidden">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-700 to-blue-500 text-white flex items-center justify-center font-bold text-xs shrink-0">
-                {user.name.charAt(0)}
-              </div>
-              <div className="overflow-hidden">
-                <p className="text-xs font-semibold text-slate-900 truncate">
-                  {user.name}
-                </p>
-                <p className="text-[11px] text-slate-500 truncate">{user.email}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
-            <div className="flex items-center gap-1 text-[11px] font-medium text-slate-600">
-              <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
-              <span>{user.role}</span>
-            </div>
-            <button
-              onClick={() => logout()}
-              className="text-slate-400 hover:text-rose-600 transition-colors p-1"
-              title="Logout"
+      {navigation
+        .filter((item) => item.show)
+        .map((item) => {
+          const isActive = pathname === item.href;
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
+              onClick={() => onCloseMobile?.()}
+              className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                isActive
+                  ? "bg-indigo-50 text-indigo-700 shadow-xs border border-indigo-100"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              }`}
             >
-              <LogOut className="w-3.5 h-3.5" />
-            </button>
+              <div className="flex items-center gap-3">
+                <Icon
+                  className={`w-4 h-4 ${
+                    isActive ? "text-indigo-600" : "text-slate-400"
+                  }`}
+                />
+                <span>{item.name}</span>
+              </div>
+              {item.badge && (
+                <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-normal">
+                  {item.badge}
+                </span>
+              )}
+            </Link>
+          );
+        })}
+    </nav>
+  );
+
+  const renderUserFooter = () => (
+    <div className="p-3 border-t border-slate-200 bg-slate-50/50">
+      <div className="p-2.5 rounded-lg bg-white border border-slate-200 shadow-xs">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2 overflow-hidden">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-700 to-blue-500 text-white flex items-center justify-center font-bold text-xs shrink-0">
+              {user.name.charAt(0)}
+            </div>
+            <div className="overflow-hidden">
+              <p className="text-xs font-semibold text-slate-900 truncate">
+                {user.name}
+              </p>
+              <p className="text-[11px] text-slate-500 truncate">{user.email}</p>
+            </div>
           </div>
         </div>
+
+        <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
+          <div className="flex items-center gap-1 text-[11px] font-medium text-slate-600">
+            <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+            <span>{user.role}</span>
+          </div>
+          <button
+            onClick={() => {
+              onCloseMobile?.();
+              logout();
+            }}
+            className="text-slate-400 hover:text-rose-600 transition-colors p-1"
+            title="Logout"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
-    </aside>
+    </div>
+  );
+
+  return (
+    <>
+      {/* 1. Mobile Drawer Backdrop */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-40 lg:hidden transition-opacity duration-300"
+          onClick={onCloseMobile}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* 2. Mobile Off-Canvas Drawer (< lg) */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-72 bg-white flex flex-col h-full shadow-2xl select-none overflow-hidden transition-transform duration-300 ease-in-out lg:hidden ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="h-16 flex items-center justify-between px-5 border-b border-slate-200 gap-3">
+          <div className="flex items-center gap-3">
+            <div className="relative w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center p-0.5 bg-slate-100 shadow-sm border border-slate-200">
+              <Image
+                src="/logo.png"
+                alt="EC HYBRID Logo"
+                width={32}
+                height={32}
+                className="object-contain"
+                priority
+              />
+            </div>
+            <div className="flex flex-col">
+              <span className="font-bold text-base tracking-tight text-slate-900 leading-tight">
+                EC HYBRID
+              </span>
+              <span className="text-[11px] font-medium text-slate-500">
+                Operations Platform
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={onCloseMobile}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            aria-label="Close navigation"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {renderNavLinks()}
+        {renderUserFooter()}
+      </aside>
+
+      {/* 3. Desktop Persistent Sidebar (>= lg) */}
+      <aside className="hidden lg:flex w-64 bg-white border-r border-slate-200 flex-col h-screen shrink-0 select-none shadow-sm overflow-hidden">
+        <div className="h-16 flex items-center px-5 border-b border-slate-200 gap-3">
+          <div className="relative w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center p-0.5 bg-slate-100 shadow-sm border border-slate-200">
+            <Image
+              src="/logo.png"
+              alt="EC HYBRID Logo"
+              width={32}
+              height={32}
+              className="object-contain"
+              priority
+            />
+          </div>
+          <div className="flex flex-col">
+            <span className="font-bold text-base tracking-tight text-slate-900 leading-tight">
+              EC HYBRID
+            </span>
+            <span className="text-[11px] font-medium text-slate-500">
+              Operations Platform
+            </span>
+          </div>
+        </div>
+
+        {renderNavLinks()}
+        {renderUserFooter()}
+      </aside>
+    </>
   );
 }

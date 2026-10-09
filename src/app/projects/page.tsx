@@ -285,9 +285,9 @@ export default function ProjectsPage() {
       )}
 
       {/* Control Bar */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3 flex-1 min-w-[280px]">
-          <div className="relative flex-1 min-w-[200px] max-w-sm">
+      <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-xs mb-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 flex-1 min-w-0">
+          <div className="relative w-full sm:flex-1 sm:max-w-xs">
             <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
             <input
               type="text"
@@ -301,7 +301,7 @@ export default function ProjectsPage() {
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+            className="flex-1 sm:flex-none px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
           >
             <option value="">All Project Types</option>
             <option value="SERVICE">IT Services (Contracted)</option>
@@ -311,7 +311,7 @@ export default function ProjectsPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+            className="flex-1 sm:flex-none px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
           >
             <option value="">All Statuses</option>
             <option value="PLANNING">Planning</option>
@@ -337,7 +337,7 @@ export default function ProjectsPage() {
               });
               setIsAddModalOpen(true);
             }}
-            className="px-3.5 py-1.5 gradient-brand text-white font-medium text-xs rounded-lg hover:opacity-95 transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+            className="w-full sm:w-auto px-3.5 py-2 sm:py-1.5 gradient-brand text-white font-medium text-xs rounded-lg hover:opacity-95 transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Create Project</span>
@@ -459,8 +459,8 @@ export default function ProjectsPage() {
       {/* Modal: Create / Edit Project */}
       {(isAddModalOpen || isEditModalOpen) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden">
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-lg w-full max-h-[90dvh] flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
               <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                 <FolderGit2 className="w-4 h-4 text-indigo-600" />
                 {isEditModalOpen ? `Edit Project: ${selectedProject?.name}` : "Create New Project Engagement"}
@@ -478,7 +478,7 @@ export default function ProjectsPage() {
 
             <form
               onSubmit={isEditModalOpen ? handleUpdateProject : handleCreateProject}
-              className="p-5 space-y-3.5 text-xs"
+              className="p-4 sm:p-5 space-y-3.5 text-xs overflow-y-auto flex-1"
             >
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">Project Name</label>
@@ -503,7 +503,7 @@ export default function ProjectsPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Project Type</label>
                   <select
@@ -530,7 +530,7 @@ export default function ProjectsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Budget (INR ₹)</label>
                   <input
@@ -573,7 +573,7 @@ export default function ProjectsPage() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Start Date</label>
                   <input
@@ -594,7 +594,7 @@ export default function ProjectsPage() {
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => {

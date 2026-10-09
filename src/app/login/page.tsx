@@ -37,8 +37,8 @@ export default function LoginPage() {
         {/* Brand Card */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
           {/* Header with Brand Gradient Accent */}
-          <div className="gradient-brand p-8 text-center text-white relative">
-            <div className="inline-flex p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-md mb-4">
+          <div className="gradient-brand p-6 sm:p-8 text-center text-white relative">
+            <div className="inline-flex p-2.5 sm:p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-md mb-3 sm:mb-4">
               <Image
                 src="/logo.png"
                 alt="EC HYBRID"
@@ -48,14 +48,14 @@ export default function LoginPage() {
                 priority
               />
             </div>
-            <h1 className="text-2xl font-black tracking-tight">EC HYBRID</h1>
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight">EC HYBRID</h1>
             <p className="text-indigo-200 text-xs mt-1 font-medium">
               Enterprise Operations & Management Platform
             </p>
           </div>
 
           {/* Form Area */}
-          <div className="p-8">
+          <div className="p-5 sm:p-8">
             <h2 className="text-lg font-bold text-slate-900 mb-1">
               Sign in to your account
             </h2>

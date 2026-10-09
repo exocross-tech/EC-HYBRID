@@ -270,13 +270,13 @@ export default function SocialPage() {
               {/* Channel Selector */}
               <div>
                 <label className="block text-slate-700 font-semibold mb-1.5">Select Channel</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-2">
                   {PLATFORMS.map((plat) => (
                     <button
                       key={plat.id}
                       type="button"
                       onClick={() => setSelectedPlatform(plat.id as any)}
-                      className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                      className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
                         selectedPlatform === plat.id
                           ? `${plat.color} border-transparent shadow-xs`
                           : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
@@ -387,13 +387,13 @@ export default function SocialPage() {
         {/* Right: Posts Feed & Queue */}
         <div className="lg:col-span-7 space-y-4">
           {/* Feed Filter Tabs */}
-          <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-xs flex items-center justify-between">
-            <div className="flex items-center gap-1">
+          <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div className="flex items-center gap-1 overflow-x-auto w-full sm:w-auto">
               {(["ALL", "PUBLISHED", "SCHEDULED", "DRAFT"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
                     activeTab === tab
                       ? "bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-xs"
                       : "text-slate-600 hover:text-slate-900"
@@ -404,13 +404,15 @@ export default function SocialPage() {
               ))}
             </div>
 
-            <button
-              onClick={fetchPosts}
-              className="p-1.5 text-slate-500 hover:text-slate-800 rounded-lg"
-              title="Refresh feed"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-            </button>
+            <div className="flex justify-end">
+              <button
+                onClick={fetchPosts}
+                className="p-1.5 text-slate-500 hover:text-slate-800 rounded-lg cursor-pointer"
+                title="Refresh feed"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              </button>
+            </div>
           </div>
 
           {/* Posts List */}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "./Sidebar";
@@ -16,12 +16,18 @@ export function AppLayout({ children, title, subtitle }: AppLayoutProps) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user && pathname !== "/login") {
       router.push("/login");
     }
   }, [user, loading, router, pathname]);
+
+  // Auto-close mobile drawer on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
 
   if (loading) {
     return (
@@ -47,10 +53,17 @@ export function AppLayout({ children, title, subtitle }: AppLayoutProps) {
 
   return (
     <div className="h-screen flex overflow-hidden bg-slate-50 text-slate-900">
-      <Sidebar />
+      <Sidebar
+        mobileOpen={mobileMenuOpen}
+        onCloseMobile={() => setMobileMenuOpen(false)}
+      />
       <div className="flex-1 flex flex-col h-screen min-w-0 overflow-hidden">
-        <Navbar title={title} subtitle={subtitle} />
-        <main className="flex-1 p-6 overflow-y-auto">{children}</main>
+        <Navbar
+          title={title}
+          subtitle={subtitle}
+          onOpenMobileMenu={() => setMobileMenuOpen(true)}
+        />
+        <main className="flex-1 p-3.5 sm:p-5 md:p-6 overflow-y-auto">{children}</main>
       </div>
     </div>
   );

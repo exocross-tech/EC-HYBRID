@@ -343,12 +343,12 @@ export default function PayrollPage() {
       )}
 
       {/* Tab Navigation & Action Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 mb-5">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 mb-5">
         {isAdminOrHR ? (
-          <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl w-fit">
+          <div className="flex items-center gap-1.5 sm:gap-2 bg-slate-100 p-1 rounded-xl w-full sm:w-fit overflow-x-auto">
             <button
               onClick={() => setActiveTab("payslips")}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+              className={`px-3 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all shrink-0 cursor-pointer ${
                 activeTab === "payslips"
                   ? "bg-white text-indigo-700 shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
@@ -356,12 +356,12 @@ export default function PayrollPage() {
             >
               <div className="flex items-center gap-2">
                 <FileText className="w-3.5 h-3.5" />
-                <span>Monthly Payslips ({payslips.length})</span>
+                <span>Payslips ({payslips.length})</span>
               </div>
             </button>
             <button
               onClick={() => setActiveTab("structures")}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+              className={`px-3 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all shrink-0 cursor-pointer ${
                 activeTab === "structures"
                   ? "bg-white text-indigo-700 shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
@@ -381,11 +381,11 @@ export default function PayrollPage() {
         )}
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
           {isAdminOrHR && (
             <button
               onClick={() => setShowGenerateModal(true)}
-              className="flex items-center justify-center gap-2 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Run Monthly Payroll</span>
@@ -394,7 +394,7 @@ export default function PayrollPage() {
           <button
             onClick={fetchData}
             title="Refresh list"
-            className="p-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl transition-colors"
+            className="p-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl transition-colors cursor-pointer"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           </button>
@@ -405,8 +405,8 @@ export default function PayrollPage() {
       {activeTab === "payslips" && (
         <div className="space-y-4">
           {/* Filters Bar */}
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2 flex-1 min-w-[220px]">
+          <div className="bg-white rounded-xl border border-slate-200 p-3.5 sm:p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2 w-full sm:flex-1 min-w-0 sm:min-w-[220px] bg-slate-50 sm:bg-transparent px-3 py-1.5 sm:p-0 rounded-lg sm:rounded-none border sm:border-0 border-slate-200">
               <Search className="w-4 h-4 text-slate-400 shrink-0" />
               <input
                 type="text"
@@ -417,7 +417,7 @@ export default function PayrollPage() {
               />
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
               <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium">
                 <span>Month:</span>
                 <select
@@ -452,7 +452,7 @@ export default function PayrollPage() {
           {/* Payslips Table */}
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-600">
+              <table className="w-full text-left text-xs text-slate-600 min-w-[720px]">
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[10px]">
                   <tr>
                     <th className="py-3 px-4">Period</th>
@@ -590,7 +590,7 @@ export default function PayrollPage() {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-600">
+              <table className="w-full text-left text-xs text-slate-600 min-w-[700px]">
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[10px]">
                   <tr>
                     <th className="py-3 px-4">Employee</th>
@@ -643,7 +643,7 @@ export default function PayrollPage() {
                         ) : (
                           <button
                             onClick={() => handleOpenEdit(sal)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors"
+                            className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
                           >
                             <Edit className="w-3.5 h-3.5 text-slate-500" />
                             <span>Edit Structure</span>
@@ -661,10 +661,10 @@ export default function PayrollPage() {
 
       {/* VIEW PAYSLIP DETAIL MODAL */}
       {selectedPayslip && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full max-h-[90dvh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             {/* Modal Header */}
-            <div className="bg-slate-900 text-white p-5 flex items-center justify-between">
+            <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between shrink-0">
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs uppercase tracking-wider text-indigo-400 font-bold">EC HYBRID</span>
@@ -672,7 +672,7 @@ export default function PayrollPage() {
                     Official Payslip
                   </span>
                 </div>
-                <h3 className="text-base font-bold mt-1">
+                <h3 className="text-sm sm:text-base font-bold mt-1">
                   {MONTH_NAMES[selectedPayslip.month - 1]} {selectedPayslip.year} Salary Slip
                 </h3>
               </div>
@@ -685,9 +685,9 @@ export default function PayrollPage() {
             </div>
 
             {/* Modal Content */}
-            <div className="p-6 space-y-5 text-xs">
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 text-xs overflow-y-auto flex-1">
               {/* Employee Info Header */}
-              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 grid grid-cols-2 gap-2 text-slate-600">
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-600">
                 <div>
                   <span className="text-[10px] text-slate-400 uppercase font-semibold">Employee</span>
                   <p className="font-bold text-slate-900">{selectedPayslip.salary.user.name}</p>
@@ -707,7 +707,7 @@ export default function PayrollPage() {
               </div>
 
               {/* Earnings & Deductions Tables */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Earnings */}
                 <div className="space-y-2">
                   <h4 className="font-bold text-slate-900 border-b border-slate-200 pb-1 flex justify-between">
@@ -792,9 +792,9 @@ export default function PayrollPage() {
 
       {/* EDIT SALARY STRUCTURE MODAL */}
       {editingSalary && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="bg-slate-900 text-white p-5 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full max-h-[90dvh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between shrink-0">
               <div>
                 <h3 className="text-sm font-bold">Edit Salary Structure</h3>
                 <p className="text-xs text-slate-300 mt-0.5">
@@ -809,7 +809,7 @@ export default function PayrollPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveSalary} className="p-6 space-y-4 text-xs">
+            <form onSubmit={handleSaveSalary} className="p-4 sm:p-6 space-y-4 text-xs overflow-y-auto flex-1">
               <div>
                 <label className="block text-slate-700 font-semibold mb-1">Basic Monthly Pay (₹ INR)</label>
                 <input
@@ -866,13 +866,13 @@ export default function PayrollPage() {
                 <button
                   type="button"
                   onClick={() => setEditingSalary(null)}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 font-semibold"
+                  className="px-4 py-2 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-xs transition-colors"
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-xs transition-colors cursor-pointer"
                 >
                   Update Salary
                 </button>
@@ -884,9 +884,9 @@ export default function PayrollPage() {
 
       {/* RUN MONTHLY PAYROLL MODAL (ADMIN & HR) */}
       {showGenerateModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="bg-slate-900 text-white p-5 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full max-h-[90dvh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between shrink-0">
               <div>
                 <h3 className="text-sm font-bold">Generate Monthly Payroll</h3>
                 <p className="text-xs text-slate-300 mt-0.5">
@@ -901,8 +901,8 @@ export default function PayrollPage() {
               </button>
             </div>
 
-            <form onSubmit={handleGeneratePayroll} className="p-6 space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleGeneratePayroll} className="p-4 sm:p-6 space-y-4 text-xs overflow-y-auto flex-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-700 font-semibold mb-1">Select Month</label>
                   <select
@@ -946,14 +946,14 @@ export default function PayrollPage() {
                 <button
                   type="button"
                   onClick={() => setShowGenerateModal(false)}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 font-semibold"
+                  className="px-4 py-2 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={generating}
-                  className="flex items-center gap-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl font-bold shadow-xs transition-colors"
+                  className="flex items-center gap-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl font-bold shadow-xs transition-colors cursor-pointer"
                 >
                   {generating ? (
                     <>
