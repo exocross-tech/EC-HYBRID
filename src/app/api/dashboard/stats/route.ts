@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { formatDate } from "@/lib/formatDate";
 
 export async function GET() {
   const { error, status, user } = await requireAuth();
@@ -128,12 +129,7 @@ export async function GET() {
       const totalTodayTasks = todoCount + inProgressCount + reviewCount + completedCount;
 
       const todayTasksData = {
-        dateStr: now.toLocaleDateString("en-IN", {
-          weekday: "short",
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-        }),
+        dateStr: formatDate(now),
         todo: todoCount,
         inProgress: inProgressCount,
         review: reviewCount,

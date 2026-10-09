@@ -33,6 +33,7 @@ export async function GET(
       dateJoined: true,
       status: true,
       role: true,
+      avatarUrl: true,
       createdAt: true,
       salary: user.role === "ADMIN" || user.role === "HR" || user.userId === id,
       assignedTasks: {
@@ -90,6 +91,7 @@ export async function PUT(
       where: { id },
       data: {
         phone: body.phone !== undefined ? body.phone : existing.phone,
+        avatarUrl: body.avatarUrl !== undefined ? body.avatarUrl : existing.avatarUrl,
       },
       select: {
         id: true,
@@ -100,6 +102,7 @@ export async function PUT(
         department: true,
         status: true,
         role: true,
+        avatarUrl: true,
       },
     });
 
@@ -123,7 +126,10 @@ export async function PUT(
     if (body.phone !== undefined) updateData.phone = body.phone;
     if (body.designation) updateData.designation = body.designation;
     if (body.department) updateData.department = body.department;
+    if (body.avatarUrl !== undefined) updateData.avatarUrl = body.avatarUrl;
     if (body.status) updateData.status = body.status;
+    if (body.action === "RESTRICT") updateData.status = "RESTRICTED";
+    if (body.action === "UNRESTRICT") updateData.status = "ACTIVE";
     if (body.password) updateData.passwordHash = await hashPassword(body.password);
 
     // Only Admin can change roles to ADMIN or modify other Admins
@@ -146,14 +152,15 @@ export async function PUT(
         department: true,
         status: true,
         role: true,
+        avatarUrl: true,
       },
     });
 
     await prisma.auditLog.create({
       data: {
         userId: user.userId,
-        action: "EMPLOYEE_UPDATED",
-        details: `Updated employee ${updated.name} (${updated.email})`,
+        action: updateData.status === "RESTRICTED" ? "EMPLOYEE_RESTRICTED" : "EMPLOYEE_UPDATED",
+        details: `Updated employee ${updated.name} (${updated.email}) - Status: ${updated.status}`,
       },
     });
 
@@ -163,7 +170,9 @@ export async function PUT(
   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 }
 
-// DELETE /api/employees/[id] - Soft delete (deactivation status flag) per spec
+// DELETE /api/employees/[id]
+// - ?permanent=true: Cascading permanent deletion of user and isolated records while preserving collaborative projects
+// - Default: Restrict access flag (preserves data, kills session and login)
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -180,25 +189,73 @@ export async function DELETE(
   }
 
   if (existing.role === "ADMIN" && user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Only an Administrator can deactivate an Admin" }, { status: 403 });
+    return NextResponse.json({ error: "Only an Administrator can modify or delete an Admin account" }, { status: 403 });
   }
 
-  // Soft delete flag per spec: preserving historical records
+  const isPermanent = req.nextUrl.searchParams.get("permanent") === "true";
+
+  if (isPermanent) {
+    if (user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Only an Administrator can permanently delete an employee" }, { status: 403 });
+    }
+
+    // 1. Delete isolated personal records: Salary (cascades Payslip), Leaves, Notifications
+    await prisma.salary.deleteMany({ where: { userId: id } });
+    await prisma.leaveRequest.deleteMany({ where: { userId: id } });
+    await prisma.notification.deleteMany({ where: { userId: id } });
+
+    // 2. Safely detach from collaborative shared records (projects remain untouched!)
+    await prisma.task.updateMany({
+      where: { assignedToId: id },
+      data: { assignedToId: null },
+    });
+
+    await prisma.client.updateMany({
+      where: { createdById: id },
+      data: { createdById: null },
+    });
+
+    // 3. Nullify or clean up audit logs linked to this user
+    await prisma.auditLog.updateMany({
+      where: { userId: id },
+      data: { userId: null },
+    });
+
+    // 4. Delete user record
+    await prisma.user.delete({ where: { id } });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: user.userId,
+        action: "EMPLOYEE_PERMANENTLY_DELETED",
+        details: `Permanently deleted employee ${existing.name} (${existing.email})`,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `Employee ${existing.name} and related records permanently deleted successfully.`,
+    });
+  }
+
+  // Restrict access mode: keeps all database records intact, prevents login and forces active session termination
   const updated = await prisma.user.update({
     where: { id },
-    data: { status: "INACTIVE" },
+    data: { status: "RESTRICTED" },
+    select: { id: true, name: true, email: true, status: true },
   });
 
   await prisma.auditLog.create({
     data: {
       userId: user.userId,
-      action: "EMPLOYEE_DEACTIVATED",
-      details: `Deactivated employee ${existing.name} (${existing.email})`,
+      action: "EMPLOYEE_RESTRICTED",
+      details: `Restricted system access for employee ${existing.name} (${existing.email})`,
     },
   });
 
   return NextResponse.json({
     success: true,
-    message: `Employee ${existing.name} deactivated (soft deleted) successfully`,
+    message: `Access for employee ${existing.name} has been restricted.`,
+    employee: updated,
   });
 }

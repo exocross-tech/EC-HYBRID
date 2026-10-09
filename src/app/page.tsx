@@ -24,6 +24,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { formatINR } from "@/lib/formatCurrency";
+import { formatDate } from "@/lib/formatDate";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import LoginPage from "./login/page";
 
@@ -822,7 +823,7 @@ export default function DashboardPage() {
                             {log.action}
                           </span>
                           <span className="text-slate-400">
-                            {new Date(log.createdAt).toLocaleDateString()}
+                            {formatDate(log.createdAt)}
                           </span>
                         </div>
                       </div>
@@ -993,8 +994,8 @@ export default function DashboardPage() {
                         </span>
                       </div>
                       <p className="text-[11px] text-slate-600 mb-1.5">
-                        {new Date(leave.startDate).toLocaleDateString()} –{" "}
-                        {new Date(leave.endDate).toLocaleDateString()}
+                        {formatDate(leave.startDate)} –{" "}
+                        {formatDate(leave.endDate)}
                       </p>
                       {leave.reason && (
                         <p className="text-[11px] italic text-slate-500 mb-2.5">
@@ -1147,7 +1148,7 @@ export default function DashboardPage() {
                             </span>
                           </td>
                           <td className="py-3 px-4 text-slate-600">
-                            {emp.dateJoined ? new Date(emp.dateJoined).toLocaleDateString() : "—"}
+                            {formatDate(emp.dateJoined)}
                           </td>
                           <td className="py-3 px-4 text-center">
                             <span
@@ -1209,8 +1210,8 @@ export default function DashboardPage() {
                         {l.user?.department} • {l.user?.designation}
                       </div>
                       <div className="text-[11px] text-slate-600 mt-1 font-medium">
-                        {new Date(l.startDate).toLocaleDateString()} –{" "}
-                        {new Date(l.endDate).toLocaleDateString()}
+                        {formatDate(l.startDate)} –{" "}
+                        {formatDate(l.endDate)}
                       </div>
                     </div>
                   ))
@@ -1464,8 +1465,8 @@ export default function DashboardPage() {
                         </span>
                       </div>
                       <p className="text-[11px] text-slate-500 mt-1">
-                        {new Date(l.startDate).toLocaleDateString()} –{" "}
-                        {new Date(l.endDate).toLocaleDateString()}
+                        {formatDate(l.startDate)} –{" "}
+                        {formatDate(l.endDate)}
                       </p>
                     </div>
                   ))

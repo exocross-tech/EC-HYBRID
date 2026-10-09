@@ -63,6 +63,7 @@ export async function PUT(
     data: {
       name: body.name || existing.name,
       description: body.description !== undefined ? body.description : existing.description,
+      requirements: body.requirements !== undefined ? body.requirements : existing.requirements,
       type: body.type || existing.type,
       status: body.status || existing.status,
       budget: body.budget !== undefined ? parseFloat(body.budget) : existing.budget,
@@ -86,6 +87,8 @@ export async function PUT(
 
   return NextResponse.json({ success: true, project: updated });
 }
+
+export const PATCH = PUT;
 
 // DELETE /api/projects/[id] - Admin only (Managers cannot delete records per Section 2)
 export async function DELETE(

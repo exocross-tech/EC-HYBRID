@@ -19,10 +19,11 @@ import {
   Edit2,
   Trash2,
   ArrowRight,
-  ShieldAlert,
   Kanban,
   ListTodo,
+  Loader2,
 } from "lucide-react";
+import { formatDate } from "@/lib/formatDate";
 
 interface Task {
   id: string;
@@ -87,6 +88,7 @@ export default function TasksPage() {
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isAdmin = user?.role === "ADMIN";
   const isManager = user?.role === "MANAGER";
@@ -175,6 +177,7 @@ export default function TasksPage() {
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionError(null);
+    setIsSubmitting(true);
 
     try {
       const res = await fetch("/api/tasks", {
@@ -202,6 +205,8 @@ export default function TasksPage() {
       }
     } catch (err: any) {
       setActionError(err.message || "Network error");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -245,6 +250,7 @@ export default function TasksPage() {
     e.preventDefault();
     if (!selectedTask) return;
     setActionError(null);
+    setIsSubmitting(true);
 
     try {
       const res = await fetch(`/api/tasks/${selectedTask.id}`, {
@@ -263,6 +269,8 @@ export default function TasksPage() {
       }
     } catch (err: any) {
       setActionError(err.message || "Network error");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -516,7 +524,7 @@ export default function TasksPage() {
                             {task.dueDate && (
                               <div className="mt-2.5 flex items-center gap-1 text-[10px] text-slate-500 font-medium">
                                 <Clock className="w-3 h-3 text-slate-400" />
-                                <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                                <span>Due: {formatDate(task.dueDate)}</span>
                               </div>
                             )}
                           </div>
@@ -661,7 +669,7 @@ export default function TasksPage() {
                         {task.dueDate && (
                           <span className="flex items-center gap-1 text-amber-700">
                             <Clock className="w-3 h-3" />
-                            {new Date(task.dueDate).toLocaleDateString()}
+                            {formatDate(task.dueDate)}
                           </span>
                         )}
                       </div>
@@ -823,9 +831,11 @@ export default function TasksPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 gradient-brand text-white font-medium rounded-lg hover:opacity-95 transition-all shadow-xs cursor-pointer"
+                  disabled={isSubmitting}
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 gradient-brand text-white font-medium rounded-lg hover:opacity-95 transition-all shadow-xs cursor-pointer disabled:opacity-50"
                 >
-                  {isEditModalOpen ? "Save Changes" : "Assign Task"}
+                  {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{isSubmitting ? "Saving..." : isEditModalOpen ? "Save Changes" : "Assign Task"}</span>
                 </button>
               </div>
             </form>

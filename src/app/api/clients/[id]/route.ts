@@ -82,9 +82,11 @@ export async function PUT(
       email: body.email || existing.email,
       phone: body.phone !== undefined ? body.phone : existing.phone,
       address: body.address !== undefined ? body.address : existing.address,
+      notes: body.notes !== undefined ? body.notes : existing.notes,
       clientType: body.clientType || existing.clientType,
       leadSource: body.leadSource || existing.leadSource,
       status: body.status || existing.status,
+      isDeleted: body.isDeleted !== undefined ? body.isDeleted : existing.isDeleted,
     },
   });
 
@@ -99,7 +101,9 @@ export async function PUT(
   return NextResponse.json({ success: true, client: updated });
 }
 
-// DELETE /api/clients/[id] - Admin only (Managers cannot delete records per Section 2)
+// DELETE /api/clients/[id] - Admin only
+// - ?permanent=true: Safe cascading permanent deletion: unlinks shared projects, cleans up orders/invoices, deletes client
+// - Default: Soft-delete (sets isDeleted: true and status: INACTIVE, retaining all DB records)
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -113,27 +117,57 @@ export async function DELETE(
     );
   }
 
-  const existing = await prisma.client.findFirst({ where: { id, isDeleted: false } });
+  const existing = await prisma.client.findUnique({ where: { id } });
   if (!existing) {
     return NextResponse.json({ error: "Client not found" }, { status: 404 });
   }
 
-  // Soft delete flag per non-functional requirements
+  const isPermanent = req.nextUrl.searchParams.get("permanent") === "true";
+
+  if (isPermanent) {
+    // 1. Safely detach all linked projects so projects, milestones and tasks are PRESERVED!
+    await prisma.project.updateMany({
+      where: { clientId: id },
+      data: { clientId: null },
+    });
+
+    // 2. Cascade delete direct client orders and invoices
+    await prisma.order.deleteMany({ where: { clientId: id } });
+    await prisma.invoice.deleteMany({ where: { clientId: id } });
+
+    // 3. Delete client record
+    await prisma.client.delete({ where: { id } });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: user.userId,
+        action: "CLIENT_PERMANENTLY_DELETED",
+        details: `Permanently deleted client ${existing.name} (${existing.company})`,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `Client ${existing.name} and related records permanently deleted successfully. Linked projects were safely preserved.`,
+    });
+  }
+
+  // Soft delete mode: retaining all data in database
   await prisma.client.update({
     where: { id },
-    data: { isDeleted: true },
+    data: { isDeleted: true, status: "INACTIVE" },
   });
 
   await prisma.auditLog.create({
     data: {
       userId: user.userId,
-      action: "CLIENT_DELETED",
+      action: "CLIENT_SOFT_DELETED",
       details: `Soft-deleted client ${existing.name} (${existing.company})`,
     },
   });
 
   return NextResponse.json({
     success: true,
-    message: `Client ${existing.name} soft-deleted successfully`,
+    message: `Client ${existing.name} soft-deleted (archived) successfully. Records preserved in database.`,
   });
 }

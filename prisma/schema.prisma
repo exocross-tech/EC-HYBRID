@@ -38,6 +38,7 @@ model Client {
   email       String
   phone       String?
   address     String?
+  notes       String?
   clientType  String    @default("SERVICE") // PRODUCT, SERVICE, BOTH
   leadSource  String?
   status      String    @default("ACTIVE") // LEAD, ACTIVE, INACTIVE
@@ -58,6 +59,7 @@ model Project {
   id             String          @id @default(cuid())
   name           String
   description    String?
+  requirements   String?
   type           String          @default("SERVICE") // PRODUCT, SERVICE
   status         String          @default("PLANNING") // PLANNING, ACTIVE, COMPLETED, ON_HOLD
   budget         Float           @default(0)
@@ -202,9 +204,11 @@ model Invoice {
   totalAmount   Float     // Amount + Tax in INR
   dueDate       DateTime
   issueDate     DateTime  @default(now())
-  status        String    @default("SENT") // DRAFT, SENT, PAID, OVERDUE
+  status        String    @default("SENT") // DRAFT, SENT, PARTIALLY_PAID, PAID, OVERDUE
   items         String?   // JSON string of line items [{ description, quantity, unitPrice, amount }]
   paymentDate   DateTime?
+  payments      String?   // JSON string of installments [{ id, amount, date, method, reference, note }]
+  paidAmount    Float     @default(0)
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

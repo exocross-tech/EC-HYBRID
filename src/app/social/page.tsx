@@ -19,8 +19,8 @@ import {
   Globe,
   Radio,
   X
-} from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { formatDate, formatDateTime } from "@/lib/formatDate";
 
 interface SocialPost {
   id: string;
@@ -446,9 +446,9 @@ export default function SocialPage() {
                         </span>
                         <span className="text-[11px] text-slate-400">
                           {post.publishedAt
-                            ? `Published on ${new Date(post.publishedAt).toLocaleDateString("en-IN")}`
+                            ? `Published on ${formatDate(post.publishedAt)}`
                             : post.scheduledFor
-                            ? `Scheduled for ${new Date(post.scheduledFor).toLocaleString()}`
+                            ? `Scheduled for ${formatDateTime(post.scheduledFor)}`
                             : "Draft"}
                         </span>
                       </div>

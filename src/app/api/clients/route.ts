@@ -66,6 +66,10 @@ export async function GET(req: NextRequest) {
           status: true,
           budget: true,
           type: true,
+          billingType: true,
+          startDate: true,
+          endDate: true,
+          description: true,
         },
       },
       orders: {
@@ -95,7 +99,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { name, company, email, phone, address, clientType, leadSource, status: clientStatus } = body;
+    const { name, company, email, phone, address, notes, clientType, leadSource, status: clientStatus } = body;
 
     if (!name || !company || !email) {
       return NextResponse.json(
@@ -111,6 +115,7 @@ export async function POST(req: NextRequest) {
         email: email.toLowerCase().trim(),
         phone: phone || null,
         address: address || null,
+        notes: notes || null,
         clientType: clientType || "SERVICE", // tagged for business line reporting
         leadSource: leadSource || "Direct",
         status: clientStatus || "ACTIVE",

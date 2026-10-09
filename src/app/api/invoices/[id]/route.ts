@@ -62,6 +62,12 @@ export async function PUT(
     if (body.items !== undefined) {
       updateData.items = typeof body.items === "string" ? body.items : JSON.stringify(body.items);
     }
+    if (body.payments !== undefined) {
+      updateData.payments = typeof body.payments === "string" ? body.payments : JSON.stringify(body.payments);
+    }
+    if (body.paidAmount !== undefined) {
+      updateData.paidAmount = parseFloat(body.paidAmount) || 0;
+    }
 
     const updated = await prisma.invoice.update({
       where: { id },

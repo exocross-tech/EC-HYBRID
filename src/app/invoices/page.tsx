@@ -28,8 +28,10 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { formatINR } from "@/lib/formatCurrency";
+import { formatDate } from "@/lib/formatDate";
 import {
   downloadInvoicePDF,
+  getInvoicePDFBlob,
   InvoicePDFData,
   InvoicePDFTemplate,
   InvoiceItem,
@@ -48,9 +50,11 @@ interface Invoice {
   totalAmount: number;
   dueDate: string;
   issueDate: string;
-  status: "DRAFT" | "SENT" | "PAID" | "OVERDUE";
+  status: "DRAFT" | "SENT" | "PARTIALLY_PAID" | "PAID" | "OVERDUE";
   items: string | null;
   paymentDate: string | null;
+  payments?: string | null;
+  paidAmount?: number;
   client: {
     id: string;
     name: string;
@@ -181,6 +185,19 @@ export default function InvoicesPage() {
 
   // Modals
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null);
+  const [previewTemplate, setPreviewTemplate] = useState<InvoicePDFTemplate>("modern_tech");
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+
+  // Installment / Partial Payment Modal State (Requirement 15)
+  const [installmentModalInvoice, setInstallmentModalInvoice] = useState<Invoice | null>(null);
+  const [installmentAmount, setInstallmentAmount] = useState("");
+  const [installmentDate, setInstallmentDate] = useState("");
+  const [installmentMethod, setInstallmentMethod] = useState("UPI");
+  const [installmentReference, setInstallmentReference] = useState("");
+  const [installmentNote, setInstallmentNote] = useState("");
+  const [recordingPayment, setRecordingPayment] = useState(false);
+
   const [templateModalInvoice, setTemplateModalInvoice] = useState<Invoice | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -188,7 +205,7 @@ export default function InvoicesPage() {
   // Edit Invoice State
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [editFormData, setEditFormData] = useState<InvoiceFormState | null>(null);
-  const [editStatus, setEditStatus] = useState<"DRAFT" | "SENT" | "PAID" | "OVERDUE">("SENT");
+  const [editStatus, setEditStatus] = useState<"DRAFT" | "SENT" | "PARTIALLY_PAID" | "PAID" | "OVERDUE">("SENT");
   const [savingEdit, setSavingEdit] = useState(false);
 
   // Collapsible sections state in Create Modal
@@ -584,16 +601,10 @@ export default function InvoicesPage() {
     }
   };
 
-  // Open Template Selector Modal
-  const handleDownloadPDF = (inv: Invoice) => {
-    setTemplateModalInvoice(inv);
-  };
-
-  // Execute PDF Download with chosen template
-  const executeDownloadPDF = (inv: Invoice, template: InvoicePDFTemplate = "modern_tech") => {
+  // Helper to build standardized InvoicePDFData object
+  const buildInvoicePDFDataObject = (inv: Invoice): InvoicePDFData => {
     const { lineItems, customData } = parseStoredInvoiceItems(inv.items);
-
-    const pdfData: InvoicePDFData = {
+    return {
       id: inv.id,
       invoiceNumber: inv.invoiceNumber,
       issueDate: inv.issueDate,
@@ -617,7 +628,119 @@ export default function InvoicesPage() {
         projectHeadline: customData.projectHeadline || inv.project?.name || inv.description || undefined,
       },
     };
+  };
 
+  // Open Exact PDF Live Preview Modal (Requirement 13)
+  const handleOpenPreviewModal = (inv: Invoice, template: InvoicePDFTemplate = "modern_tech") => {
+    setPreviewInvoice(inv);
+    setPreviewTemplate(template);
+    try {
+      const pdfData = buildInvoicePDFDataObject(inv);
+      const blob = getInvoicePDFBlob(pdfData, org, template);
+      if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
+      const url = URL.createObjectURL(blob);
+      setPdfPreviewUrl(url);
+    } catch (err) {
+      console.error("Error generating live PDF preview:", err);
+    }
+  };
+
+  const handleSwitchPreviewTemplate = (newTemplate: InvoicePDFTemplate) => {
+    if (!previewInvoice) return;
+    setPreviewTemplate(newTemplate);
+    try {
+      const pdfData = buildInvoicePDFDataObject(previewInvoice);
+      const blob = getInvoicePDFBlob(pdfData, org, newTemplate);
+      if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
+      const url = URL.createObjectURL(blob);
+      setPdfPreviewUrl(url);
+    } catch (err) {
+      console.error("Error switching preview template:", err);
+    }
+  };
+
+  const handleClosePreviewModal = () => {
+    if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
+    setPdfPreviewUrl(null);
+    setPreviewInvoice(null);
+  };
+
+  // Open Installment / Partial Payment Modal (Requirement 15)
+  const handleOpenInstallmentModal = (inv: Invoice) => {
+    setInstallmentModalInvoice(inv);
+    const existingPayments = inv.payments ? JSON.parse(inv.payments) : [];
+    const currentPaid = inv.paidAmount || existingPayments.reduce((acc: number, p: any) => acc + (p.amount || 0), 0);
+    const remaining = Math.max(0, inv.totalAmount - currentPaid);
+    setInstallmentAmount(remaining > 0 ? remaining.toString() : "");
+    setInstallmentDate(new Date().toISOString().slice(0, 10));
+    setInstallmentMethod("UPI");
+    setInstallmentReference("");
+    setInstallmentNote("");
+  };
+
+  // Submit Installment Payment
+  const handleRecordPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!installmentModalInvoice || recordingPayment) return;
+    const amt = parseFloat(installmentAmount);
+    if (!amt || amt <= 0) {
+      setErrorMsg("Please enter a valid payment amount");
+      return;
+    }
+
+    setRecordingPayment(true);
+    setErrorMsg(null);
+
+    try {
+      const existingPayments = installmentModalInvoice.payments ? JSON.parse(installmentModalInvoice.payments) : [];
+      const newPayment = {
+        id: `pay_${Date.now()}`,
+        amount: amt,
+        date: installmentDate || new Date().toISOString().slice(0, 10),
+        method: installmentMethod,
+        reference: installmentReference.trim() || undefined,
+        note: installmentNote.trim() || undefined,
+      };
+
+      const updatedPayments = [...existingPayments, newPayment];
+      const newTotalPaid = updatedPayments.reduce((acc: number, p: any) => acc + (p.amount || 0), 0);
+      const newStatus = newTotalPaid >= installmentModalInvoice.totalAmount ? "PAID" : "PARTIALLY_PAID";
+
+      const res = await fetch(`/api/invoices/${installmentModalInvoice.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          payments: updatedPayments,
+          paidAmount: newTotalPaid,
+          status: newStatus,
+          paymentDate: newStatus === "PAID" ? new Date().toISOString() : undefined,
+        }),
+      });
+
+      if (res.ok) {
+        setSuccessMsg(`Payment of ${formatINR(amt)} logged successfully! Status updated to ${newStatus}`);
+        setInstallmentModalInvoice(null);
+        fetchInvoices();
+        setTimeout(() => setSuccessMsg(null), 4000);
+      } else {
+        const data = await res.json();
+        setErrorMsg(data.error || "Failed to record payment installment");
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "Network error");
+    } finally {
+      setRecordingPayment(false);
+    }
+  };
+
+  // Open Template Selector Modal
+  const handleDownloadPDF = (inv: Invoice) => {
+    setTemplateModalInvoice(inv);
+  };
+
+  // Execute PDF Download with chosen template
+  const executeDownloadPDF = (inv: Invoice, template: InvoicePDFTemplate = "modern_tech") => {
+    const pdfData = buildInvoicePDFDataObject(inv);
     downloadInvoicePDF(pdfData, org, template);
     setTemplateModalInvoice(null);
   };
@@ -822,7 +945,7 @@ export default function InvoicesPage() {
                     </td>
 
                     <td className="py-3 px-4 whitespace-nowrap font-medium text-slate-700">
-                      {new Date(inv.dueDate).toLocaleDateString("en-IN")}
+                      {formatDate(inv.dueDate)}
                     </td>
 
                     <td className="py-3 px-4 text-right font-medium text-slate-700 whitespace-nowrap">
@@ -842,28 +965,43 @@ export default function InvoicesPage() {
                         className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                           inv.status === "PAID"
                             ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            : inv.status === "PARTIALLY_PAID"
+                            ? "bg-blue-50 text-blue-700 border border-blue-200"
                             : inv.status === "OVERDUE"
                             ? "bg-rose-50 text-rose-700 border border-rose-200"
                             : "bg-amber-50 text-amber-700 border border-amber-200"
                         }`}
                       >
                         {inv.status === "PAID" ? <CheckCircle2 className="w-2.5 h-2.5" /> : <Clock className="w-2.5 h-2.5" />}
-                        {inv.status}
+                        {inv.status === "PARTIALLY_PAID" ? "PARTIALLY PAID" : inv.status}
                       </span>
                     </td>
 
                     <td className="py-3 px-4 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1.5">
+                        {/* 1. Mark Paid Quick Action */}
                         {isAdminOrManager && inv.status !== "PAID" && (
                           <button
                             onClick={() => handleMarkAsPaid(inv)}
                             className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
-                            title="Mark as Paid"
+                            title="Mark as Full Paid"
                           >
                             Mark Paid
                           </button>
                         )}
 
+                        {/* 2. Installment / Partial Payment (Requirement 15) */}
+                        {isAdminOrManager && inv.status !== "PAID" && (
+                          <button
+                            onClick={() => handleOpenInstallmentModal(inv)}
+                            className="p-1.5 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                            title="Record Payment / Installment"
+                          >
+                            <IndianRupee className="w-4 h-4" />
+                          </button>
+                        )}
+
+                        {/* 3. Edit Invoice */}
                         {isAdminOrManager && (
                           <button
                             onClick={() => handleOpenEdit(inv)}
@@ -874,14 +1012,16 @@ export default function InvoicesPage() {
                           </button>
                         )}
 
+                        {/* 4. Exact Live PDF Preview (Requirement 13) */}
                         <button
-                          onClick={() => setSelectedInvoice(inv)}
+                          onClick={() => handleOpenPreviewModal(inv)}
                           className="p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                          title="View Invoice Details"
+                          title="Exact Live PDF Preview"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
 
+                        {/* 5. Download PDF */}
                         <button
                           onClick={() => handleDownloadPDF(inv)}
                           className="flex items-center gap-1 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
@@ -1216,17 +1356,21 @@ export default function InvoicesPage() {
 
                 <div className="space-y-2">
                   {createForm.items.map((itm, idx) => (
-                    <div key={idx} className="flex flex-col sm:flex-row sm:items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                      <div className="w-6 text-center font-bold text-slate-400 text-xs shrink-0 hidden sm:block">
+                    <div key={idx} className="flex flex-col sm:flex-row sm:items-start gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                      <div className="w-6 pt-2 text-center font-bold text-slate-400 text-xs shrink-0 hidden sm:block">
                         #{idx + 1}
                       </div>
-                      <input
-                        type="text"
-                        placeholder="Description (e.g. UI/UX Design)"
+                      <textarea
+                        rows={1}
+                        placeholder="Description (e.g. UI/UX Design & System Architecture)"
                         required
                         value={itm.description}
-                        onChange={(e) => handleCreateItemChange(idx, "description", e.target.value)}
-                        className="w-full sm:flex-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                        onChange={(e) => {
+                          handleCreateItemChange(idx, "description", e.target.value);
+                          e.target.style.height = "auto";
+                          e.target.style.height = `${e.target.scrollHeight}px`;
+                        }}
+                        className="w-full sm:flex-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs resize-none overflow-hidden min-h-[34px] leading-relaxed"
                       />
                       <div className="flex items-center gap-2 justify-between sm:justify-start">
                         <input
@@ -1615,17 +1759,21 @@ export default function InvoicesPage() {
 
                 <div className="space-y-2">
                   {editFormData.items.map((itm, idx) => (
-                    <div key={idx} className="flex flex-col sm:flex-row sm:items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                      <div className="w-6 text-center font-bold text-slate-400 text-xs shrink-0 hidden sm:block">
+                    <div key={idx} className="flex flex-col sm:flex-row sm:items-start gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                      <div className="w-6 pt-2 text-center font-bold text-slate-400 text-xs shrink-0 hidden sm:block">
                         #{idx + 1}
                       </div>
-                      <input
-                        type="text"
-                        placeholder="Description"
+                      <textarea
+                        rows={1}
+                        placeholder="Description & Deliverable Scope"
                         required
                         value={itm.description}
-                        onChange={(e) => handleEditItemChange(idx, "description", e.target.value)}
-                        className="w-full sm:flex-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                        onChange={(e) => {
+                          handleEditItemChange(idx, "description", e.target.value);
+                          e.target.style.height = "auto";
+                          e.target.style.height = `${e.target.scrollHeight}px`;
+                        }}
+                        className="w-full sm:flex-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs resize-none overflow-hidden min-h-[34px] leading-relaxed"
                       />
                       <div className="flex items-center gap-2 justify-between sm:justify-start">
                         <input
@@ -1752,82 +1900,280 @@ export default function InvoicesPage() {
       )}
 
       {/* =========================================================================
-          VIEW INVOICE DETAILS MODAL
+          EXACT LIVE PDF PREVIEW MODAL (Requirement 13)
          ========================================================================= */}
-      {selectedInvoice && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full max-h-[90dvh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
-            <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between shrink-0">
-              <div>
-                <span className="text-xs uppercase tracking-wider text-indigo-400 font-bold">Quotation / Invoice</span>
-                <h3 className="text-base sm:text-lg font-bold mt-0.5">{selectedInvoice.invoiceNumber}</h3>
-              </div>
-              <button
-                onClick={() => setSelectedInvoice(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-4 sm:p-6 space-y-4 text-xs overflow-y-auto flex-1">
-              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-600">
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Client Name</span>
-                  <p className="font-bold text-slate-900">{selectedInvoice.client.name}</p>
-                  <p className="text-[11px] text-slate-500">{selectedInvoice.client.company}</p>
+      {previewInvoice && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-4xl w-full h-[92vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="bg-slate-900 text-white p-3.5 sm:p-4 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+                  <FileText className="w-4 h-4" />
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Project Scope</span>
-                  <p className="font-bold text-slate-900">{selectedInvoice.project?.name || selectedInvoice.description || "Direct Engagement"}</p>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Issue Date</span>
-                  <p className="font-medium text-slate-800">{new Date(selectedInvoice.issueDate).toLocaleDateString("en-IN")}</p>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Due Date</span>
-                  <p className="font-medium text-slate-800">{new Date(selectedInvoice.dueDate).toLocaleDateString("en-IN")}</p>
+                  <h3 className="font-bold text-sm sm:text-base leading-snug">
+                    PDF Preview: {previewInvoice.invoiceNumber}
+                  </h3>
+                  <p className="text-[11px] text-slate-300">
+                    {previewInvoice.client?.company || previewInvoice.client?.name} &middot; Live Vector PDF
+                  </p>
                 </div>
               </div>
 
-              {/* Items Summary */}
-              <div className="space-y-2">
-                <div className="flex justify-between py-1 border-b border-slate-200 font-bold text-slate-900">
-                  <span>Description</span>
-                  <span>Amount</span>
+              <div className="flex items-center gap-2">
+                {/* Template Selector Pills */}
+                <div className="flex items-center bg-slate-800 p-0.5 rounded-lg border border-slate-700 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => handleSwitchPreviewTemplate("modern_tech")}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
+                      previewTemplate === "modern_tech"
+                        ? "bg-indigo-600 text-white shadow-xs"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    Modern Tech
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSwitchPreviewTemplate("classic_corporate")}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
+                      previewTemplate === "classic_corporate"
+                        ? "bg-indigo-600 text-white shadow-xs"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    Classic Corporate
+                  </button>
                 </div>
-                <div className="flex justify-between py-1 text-slate-600">
-                  <span>{selectedInvoice.description || "Enterprise Technical Services"}</span>
-                  <span className="font-semibold text-slate-900">{formatINR(selectedInvoice.amount)}</span>
-                </div>
-                <div className="flex justify-between py-1 text-slate-600">
-                  <span>Goods & Services Tax (GST)</span>
-                  <span className="font-semibold text-slate-900">+{formatINR(selectedInvoice.tax)}</span>
-                </div>
-                <div className="flex justify-between pt-2 border-t border-slate-200 font-black text-slate-950 text-sm">
-                  <span>Total Amount</span>
-                  <span className="text-indigo-700">{formatINR(selectedInvoice.totalAmount)}</span>
-                </div>
-              </div>
 
-              <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3.5 sm:p-4 flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] text-indigo-700 font-bold uppercase tracking-wider">Status</span>
-                  <p className="font-bold text-indigo-950 mt-0.5">{selectedInvoice.status}</p>
-                </div>
+                {/* Direct Download */}
                 <button
-                  onClick={() => handleDownloadPDF(selectedInvoice)}
-                  className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer"
+                  type="button"
+                  onClick={() => executeDownloadPDF(previewInvoice, previewTemplate)}
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 gradient-brand text-white font-semibold text-xs rounded-lg hover:opacity-95 cursor-pointer shadow-xs"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>Download PDF</span>
+                  <span>Download</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleClosePreviewModal}
+                  className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
                 </button>
               </div>
+            </div>
+
+            {/* Live PDF Viewer Iframe */}
+            <div className="flex-1 w-full bg-slate-100 overflow-hidden relative">
+              {pdfPreviewUrl ? (
+                <iframe
+                  src={`${pdfPreviewUrl}#toolbar=0&navpanes=0`}
+                  className="w-full h-full border-0"
+                  title="Live PDF Document Preview"
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-slate-400 text-xs gap-2">
+                  <RefreshCw className="w-4 h-4 animate-spin text-indigo-600" />
+                  <span>Rendering vector PDF document...</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
+
+      {/* =========================================================================
+          INSTALLMENT & PARTIAL PAYMENT MODAL (Requirement 15)
+         ========================================================================= */}
+      {installmentModalInvoice && (() => {
+        const existingPayments = installmentModalInvoice.payments
+          ? JSON.parse(installmentModalInvoice.payments)
+          : [];
+        const totalPaid = installmentModalInvoice.paidAmount ||
+          existingPayments.reduce((acc: number, p: any) => acc + (p.amount || 0), 0);
+        const remaining = Math.max(0, installmentModalInvoice.totalAmount - totalPaid);
+        const progressPct = installmentModalInvoice.totalAmount > 0
+          ? Math.min(100, Math.round((totalPaid / installmentModalInvoice.totalAmount) * 100))
+          : 0;
+
+        return (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full max-h-[90dvh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
+              <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                    <IndianRupee className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm sm:base">Record Payment / Installment</h3>
+                    <p className="text-xs text-indigo-300">
+                      {installmentModalInvoice.invoiceNumber} &middot; {installmentModalInvoice.client?.company || installmentModalInvoice.client?.name}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setInstallmentModalInvoice(null)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-4 sm:p-5 overflow-y-auto space-y-4 text-xs flex-1">
+                {/* Financial Summary & Balance Card */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-3">
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase font-semibold block">Total Invoice</span>
+                      <span className="font-black text-slate-900 text-sm">{formatINR(installmentModalInvoice.totalAmount)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-emerald-600 uppercase font-semibold block">Paid So Far</span>
+                      <span className="font-black text-emerald-600 text-sm">{formatINR(totalPaid)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-rose-600 uppercase font-semibold block">Balance Left</span>
+                      <span className="font-black text-rose-600 text-sm">{formatINR(remaining)}</span>
+                    </div>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[10px] font-semibold text-slate-500">
+                      <span>Payment Progress</span>
+                      <span>{progressPct}% Settled</span>
+                    </div>
+                    <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-500"
+                        style={{ width: `${progressPct}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Past Payments History */}
+                {existingPayments.length > 0 && (
+                  <div>
+                    <span className="font-bold text-slate-800 block mb-1.5">Previous Payments ({existingPayments.length})</span>
+                    <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                      {existingPayments.map((p: any, idx: number) => (
+                        <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-emerald-50/50 border border-emerald-100 text-[11px]">
+                          <div>
+                            <span className="font-bold text-slate-800">{formatINR(p.amount)}</span>
+                            <span className="text-slate-400 ml-2">&middot; {p.method}</span>
+                            {p.reference && <span className="text-slate-500 ml-1">({p.reference})</span>}
+                          </div>
+                          <span className="text-slate-500 font-medium">{formatDate(p.date)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* New Installment Form */}
+                <form onSubmit={handleRecordPayment} className="space-y-3 pt-2 border-t border-slate-200">
+                  <span className="font-bold text-slate-900 block">Log New Payment Installment</span>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-slate-700 font-semibold mb-1">Amount to Record (₹)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max={remaining > 0 ? remaining : undefined}
+                        required
+                        value={installmentAmount}
+                        onChange={(e) => setInstallmentAmount(e.target.value)}
+                        placeholder={`e.g. ${remaining}`}
+                        className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-700 font-semibold mb-1">Payment Date</label>
+                      <input
+                        type="date"
+                        required
+                        value={installmentDate}
+                        onChange={(e) => setInstallmentDate(e.target.value)}
+                        className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-slate-700 font-semibold mb-1">Payment Method</label>
+                      <select
+                        value={installmentMethod}
+                        onChange={(e) => setInstallmentMethod(e.target.value)}
+                        className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                      >
+                        <option value="UPI">UPI (GooglePay / PhonePe / Paytm)</option>
+                        <option value="Bank Transfer">Bank Transfer (NEFT / RTGS / IMPS)</option>
+                        <option value="Cheque">Bank Cheque / DD</option>
+                        <option value="Cash">Cash Receipt</option>
+                        <option value="Card">Debit / Credit Card</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-slate-700 font-semibold mb-1">UTR / Transaction Ref</label>
+                      <input
+                        type="text"
+                        value={installmentReference}
+                        onChange={(e) => setInstallmentReference(e.target.value)}
+                        placeholder="e.g. HDFC-IMPS-8921"
+                        className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-700 font-semibold mb-1">Payment Note / Description</label>
+                    <input
+                      type="text"
+                      value={installmentNote}
+                      onChange={(e) => setInstallmentNote(e.target.value)}
+                      placeholder="e.g. Initial advance 50% milestone payment"
+                      className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                    <button
+                      type="button"
+                      disabled={recordingPayment}
+                      onClick={() => setInstallmentModalInvoice(null)}
+                      className="px-3 py-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={recordingPayment}
+                      className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-xs transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      {recordingPayment ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span>Logging Payment...</span>
+                        </>
+                      ) : (
+                        <span>Log Payment Installment</span>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* =========================================================================
           TEMPLATE CHOOSER MODAL (Template 1 Minimalist vs Template 2 Cyber Tech)

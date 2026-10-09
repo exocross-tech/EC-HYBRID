@@ -60,6 +60,7 @@ export async function GET(req: NextRequest) {
       dateJoined: true,
       status: true,
       role: true,
+      avatarUrl: true,
       createdAt: true,
       _count: {
         select: {
@@ -123,6 +124,7 @@ export async function POST(req: NextRequest) {
         department,
         role: role || "EMPLOYEE",
         status: "ACTIVE",
+        avatarUrl: body.avatarUrl || null,
       },
       select: {
         id: true,
@@ -134,6 +136,7 @@ export async function POST(req: NextRequest) {
         dateJoined: true,
         status: true,
         role: true,
+        avatarUrl: true,
       },
     });
 

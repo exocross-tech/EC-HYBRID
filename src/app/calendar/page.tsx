@@ -19,7 +19,9 @@ import {
   List,
   Eye,
   Info,
+  Loader2,
 } from "lucide-react";
+import { formatDate } from "@/lib/formatDate";
 
 interface CalendarEvent {
   id: string;
@@ -77,6 +79,7 @@ export default function CalendarPage() {
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isAdmin = user?.role === "ADMIN";
   const isManager = user?.role === "MANAGER";
@@ -152,6 +155,7 @@ export default function CalendarPage() {
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionError(null);
+    setIsSubmitting(true);
 
     try {
       const res = await fetch("/api/calendar", {
@@ -179,6 +183,8 @@ export default function CalendarPage() {
       }
     } catch (err: any) {
       setActionError(err.message || "Network error");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -582,7 +588,7 @@ export default function CalendarPage() {
                   <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
                     <span className="flex items-center gap-1">
                       <CalendarIcon className="w-3.5 h-3.5 text-slate-400" />
-                      {new Date(ev.startDate).toLocaleDateString()}
+                      {formatDate(ev.startDate)}
                     </span>
                     <span className="flex items-center gap-1 font-mono">
                       <Clock className="w-3.5 h-3.5 text-slate-400" />
@@ -703,7 +709,7 @@ export default function CalendarPage() {
             <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
               <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                 <CalendarIcon className="w-4 h-4 text-indigo-600" />
-                <span>Events for {new Date(dayEventsModal.date).toLocaleDateString()}</span>
+                <span>Events for {formatDate(dayEventsModal.date)}</span>
               </h3>
               <button
                 onClick={() => setDayEventsModal(null)}
@@ -864,9 +870,11 @@ export default function CalendarPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 gradient-brand text-white font-medium rounded-lg hover:opacity-95 transition-all shadow-xs cursor-pointer"
+                  disabled={isSubmitting}
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 gradient-brand text-white font-medium rounded-lg hover:opacity-95 transition-all shadow-xs cursor-pointer disabled:opacity-50"
                 >
-                  Schedule Event
+                  {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{isSubmitting ? "Scheduling..." : "Schedule Event"}</span>
                 </button>
               </div>
             </form>

@@ -1,4 +1,5 @@
 import jsPDF from "jspdf";
+import { formatDate } from "./formatDate";
 import {
   CYBER_HEADER_BG,
   MINIMALIST_LOGO,
@@ -333,7 +334,7 @@ export function downloadPayslipPDF(data: PayslipPDFData) {
   doc.setFontSize(7.5);
   doc.setTextColor(100, 116, 139);
   doc.text(`Confirmed received by ${data.employee.name}`, margin + 6, y + 13);
-  doc.text(`Generated on ${new Date(data.generatedAt || Date.now()).toLocaleDateString("en-IN")}`, col2X, y + 13);
+  doc.text(`Generated on ${formatDate(data.generatedAt || Date.now())}`, col2X, y + 13);
 
   // Digital verification stamp box
   doc.setDrawColor(16, 185, 129); // emerald
@@ -406,11 +407,7 @@ export function downloadExecutiveReportPDF(report: any) {
   doc.text("Revenue, Payroll Expense & Operational Capacity Analytics", margin, 20);
   doc.text("Confidential Executive Report | Section 3.9 Specification", margin, 25);
 
-  const todayStr = new Date().toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  const todayStr = formatDate(new Date());
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(255, 255, 255);
@@ -631,14 +628,7 @@ export interface InvoicePDFData {
 export type InvoicePDFTemplate = "modern_tech" | "classic_corporate";
 
 function formatPDFDate(dateInput: string | Date | undefined): string {
-  if (!dateInput) return new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-  try {
-    const d = new Date(dateInput);
-    if (isNaN(d.getTime())) return String(dateInput);
-    return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-  } catch {
-    return String(dateInput);
-  }
+  return formatDate(dateInput);
 }
 
 /**
@@ -700,7 +690,7 @@ function renderInvoiceLogo(
  * - Centered "Thank you for your business."
  * ============================================================================
  */
-export function generateClassicCorporatePDF(invoice: InvoicePDFData, org?: any) {
+export function buildClassicCorporatePDFDoc(invoice: InvoicePDFData, org?: any): jsPDF {
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
@@ -935,6 +925,11 @@ export function generateClassicCorporatePDF(invoice: InvoicePDFData, org?: any) 
   doc.setTextColor(107, 114, 128);
   doc.text("Thank you for your business.", pageWidth / 2, footerY, { align: "center" });
 
+  return doc;
+}
+
+export function generateClassicCorporatePDF(invoice: InvoicePDFData, org?: any) {
+  const doc = buildClassicCorporatePDFDoc(invoice, org);
   doc.save(`Quotation_${invoice.invoiceNumber || "EXO-001"}.pdf`);
 }
 
@@ -954,7 +949,7 @@ export function generateClassicCorporatePDF(invoice: InvoicePDFData, org?: any) 
  * - Dark cyber footer bar on both pages with reference and "Page X of 2"
  * ============================================================================
  */
-export function generateModernTechPDF(invoice: InvoicePDFData, org?: any) {
+export function buildModernTechPDFDoc(invoice: InvoicePDFData, org?: any): jsPDF {
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
@@ -1341,20 +1336,61 @@ export function generateModernTechPDF(invoice: InvoicePDFData, org?: any) {
 
   drawCyberFooter(2);
 
+  return doc;
+}
+
+export function generateModernTechPDF(invoice: InvoicePDFData, org?: any) {
+  const doc = buildModernTechPDFDoc(invoice, org);
   doc.save(`Cyber_Quotation_${invoice.invoiceNumber || "EXO-002"}.pdf`);
 }
 
 /**
- * Main Invoice PDF Dispatcher
+ * Returns generated jsPDF instance based on selected template
+ */
+export function buildInvoicePDFDoc(
+  invoice: InvoicePDFData,
+  org?: any,
+  template: InvoicePDFTemplate = "modern_tech"
+): jsPDF {
+  if (template === "classic_corporate") {
+    return buildClassicCorporatePDFDoc(invoice, org);
+  }
+  return buildModernTechPDFDoc(invoice, org);
+}
+
+/**
+ * Main Invoice PDF Dispatcher (downloads file to device)
  */
 export function downloadInvoicePDF(
   invoice: InvoicePDFData,
   org?: any,
   template: InvoicePDFTemplate = "modern_tech"
 ) {
-  if (template === "classic_corporate") {
-    generateClassicCorporatePDF(invoice, org);
-  } else {
-    generateModernTechPDF(invoice, org);
-  }
+  const doc = buildInvoicePDFDoc(invoice, org, template);
+  const prefix = template === "classic_corporate" ? "Quotation" : "Cyber_Quotation";
+  doc.save(`${prefix}_${invoice.invoiceNumber || "EXO"}.pdf`);
+}
+
+/**
+ * Returns raw Blob for in-browser PDF preview iframe
+ */
+export function getInvoicePDFBlob(
+  invoice: InvoicePDFData,
+  org?: any,
+  template: InvoicePDFTemplate = "modern_tech"
+): Blob {
+  const doc = buildInvoicePDFDoc(invoice, org, template);
+  return doc.output("blob");
+}
+
+/**
+ * Returns data URI string for PDF preview
+ */
+export function getInvoicePDFDataUri(
+  invoice: InvoicePDFData,
+  org?: any,
+  template: InvoicePDFTemplate = "modern_tech"
+): string {
+  const doc = buildInvoicePDFDoc(invoice, org, template);
+  return doc.output("datauristring");
 }

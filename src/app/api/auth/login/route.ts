@@ -24,6 +24,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (user.status === "RESTRICTED") {
+      return NextResponse.json(
+        { error: "Access to this account has been restricted by an administrator. Please contact your organization executive." },
+        { status: 403 }
+      );
+    }
+
     if (user.status !== "ACTIVE") {
       return NextResponse.json(
         { error: "This account has been deactivated. Please contact your administrator." },

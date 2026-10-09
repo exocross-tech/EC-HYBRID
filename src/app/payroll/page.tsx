@@ -100,6 +100,7 @@ export default function PayrollPage() {
     allowances: 0,
     deductions: 0,
   });
+  const [savingSalary, setSavingSalary] = useState(false);
   const [showAddStructureModal, setShowAddStructureModal] = useState(false);
   const [newSalaryForm, setNewSalaryForm] = useState({
     userId: "",
@@ -166,6 +167,7 @@ export default function PayrollPage() {
   const handleSaveSalary = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingSalary) return;
+    setSavingSalary(true);
     try {
       const res = await fetch(`/api/payroll/salaries/${editingSalary.userId}`, {
         method: "PUT",
@@ -183,6 +185,8 @@ export default function PayrollPage() {
       }
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to update salary");
+    } finally {
+      setSavingSalary(false);
     }
   };
 
@@ -929,9 +933,11 @@ export default function PayrollPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-xs transition-colors cursor-pointer"
+                  disabled={savingSalary}
+                  className="flex items-center gap-1.5 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl font-bold shadow-xs transition-colors cursor-pointer"
                 >
-                  Update Salary
+                  {savingSalary ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : null}
+                  <span>{savingSalary ? "Updating..." : "Update Salary"}</span>
                 </button>
               </div>
             </form>

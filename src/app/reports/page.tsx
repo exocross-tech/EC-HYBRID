@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { formatINR } from "@/lib/formatCurrency";
+import { formatDate } from "@/lib/formatDate";
 import { downloadExecutiveReportPDF } from "@/lib/pdfGenerator";
 
 interface ReportData {
@@ -109,7 +110,7 @@ export default function ReportsPage() {
 
     const rows = [
       ["EC HYBRID - EXECUTIVE PERFORMANCE REPORT"],
-      ["Generated Date", new Date().toLocaleDateString("en-IN")],
+      ["Generated Date", formatDate(new Date())],
       [],
       ["FINANCIAL PROFITABILITY METRICS (INR)"],
       ["Metric", "Amount (INR)"],

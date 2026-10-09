@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { RoleBadge } from "@/components/RoleBadge";
 import { useAuth } from "@/context/AuthContext";
+import { formatDate } from "@/lib/formatDate";
 import {
   Users,
   UserPlus,
@@ -13,10 +14,18 @@ import {
   Mail,
   Building,
   Edit2,
-  UserX,
+  Trash2,
+  Eye,
+  ShieldAlert,
+  ShieldCheck,
   CheckCircle2,
   AlertCircle,
   X,
+  RefreshCw,
+  Camera,
+  Calendar,
+  Briefcase,
+  User,
 } from "lucide-react";
 
 interface Employee {
@@ -27,8 +36,13 @@ interface Employee {
   designation: string;
   department: string;
   dateJoined: string;
-  status: "ACTIVE" | "INACTIVE";
+  status: "ACTIVE" | "RESTRICTED" | "INACTIVE";
   role: string;
+  avatarUrl?: string | null;
+  _count?: {
+    assignedTasks: number;
+    leaves: number;
+  };
 }
 
 export default function EmployeesPage() {
@@ -43,6 +57,9 @@ export default function EmployeesPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
+  const [confirmDeleteEmployee, setConfirmDeleteEmployee] = useState<Employee | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -53,6 +70,7 @@ export default function EmployeesPage() {
     designation: "",
     department: "Engineering",
     role: "EMPLOYEE",
+    avatarUrl: "",
   });
   const [editFormData, setEditFormData] = useState({
     name: "",
@@ -62,6 +80,7 @@ export default function EmployeesPage() {
     role: "",
     status: "ACTIVE",
     password: "",
+    avatarUrl: "",
   });
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
@@ -97,6 +116,8 @@ export default function EmployeesPage() {
 
   const handleCreateEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     setActionError(null);
     setActionSuccess(null);
 
@@ -109,7 +130,7 @@ export default function EmployeesPage() {
       const data = await res.json();
 
       if (res.ok) {
-        setActionSuccess(`Employee ${formData.name} successfully created.`);
+        setActionSuccess(`Employee ${formData.name} successfully registered.`);
         setIsAddModalOpen(false);
         setFormData({
           name: "",
@@ -119,6 +140,7 @@ export default function EmployeesPage() {
           designation: "",
           department: "Engineering",
           role: "EMPLOYEE",
+          avatarUrl: "",
         });
         fetchEmployees();
       } else {
@@ -126,6 +148,8 @@ export default function EmployeesPage() {
       }
     } catch (err: any) {
       setActionError(err.message || "Network error");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -139,6 +163,7 @@ export default function EmployeesPage() {
       role: emp.role,
       status: emp.status,
       password: "",
+      avatarUrl: emp.avatarUrl || "",
     });
     setActionError(null);
     setIsEditModalOpen(true);
@@ -146,7 +171,8 @@ export default function EmployeesPage() {
 
   const handleUpdateEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingEmployee) return;
+    if (!editingEmployee || isSubmitting) return;
+    setIsSubmitting(true);
     setActionError(null);
 
     try {
@@ -166,29 +192,66 @@ export default function EmployeesPage() {
       }
     } catch (err: any) {
       setActionError(err.message || "Network error");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleDeactivate = async (emp: Employee) => {
-    if (
-      !confirm(
-        `Are you sure you want to deactivate ${emp.name}? This is a soft-delete that preserves historical tasks and payroll records.`
-      )
-    ) {
-      return;
-    }
+  const handleToggleRestrict = async (emp: Employee) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setActionError(null);
+    setActionSuccess(null);
+
+    const isRestricting = emp.status !== "RESTRICTED";
+    const actionLabel = isRestricting ? "RESTRICT" : "UNRESTRICT";
 
     try {
-      const res = await fetch(`/api/employees/${emp.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/employees/${emp.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: actionLabel }),
+      });
       const data = await res.json();
       if (res.ok) {
-        setActionSuccess(data.message || "Employee deactivated.");
+        setActionSuccess(
+          isRestricting
+            ? `Access restricted for ${emp.name}. Any active session is terminated.`
+            : `System access restored for ${emp.name}.`
+        );
         fetchEmployees();
       } else {
-        setActionError(data.error || "Deactivation failed");
+        setActionError(data.error || "Failed to update access status");
       }
     } catch (err: any) {
       setActionError(err.message || "Network error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handlePermanentDelete = async () => {
+    if (!confirmDeleteEmployee || isSubmitting) return;
+    setIsSubmitting(true);
+    setActionError(null);
+    setActionSuccess(null);
+
+    try {
+      const res = await fetch(`/api/employees/${confirmDeleteEmployee.id}?permanent=true`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setActionSuccess(data.message || `Permanently deleted employee ${confirmDeleteEmployee.name}.`);
+        setConfirmDeleteEmployee(null);
+        fetchEmployees();
+      } else {
+        setActionError(data.error || "Permanent delete failed");
+      }
+    } catch (err: any) {
+      setActionError(err.message || "Network error");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -200,29 +263,29 @@ export default function EmployeesPage() {
           ? "View and update your personal employee records"
           : isManager
           ? `View-only directory for your department (${user?.department})`
-          : "Full CRUD administration and soft-deletion records for organization staff"
+          : "Full employee lifecycle: profile directory, access restriction, and safe record management"
       }
     >
       {/* Alerts */}
       {actionSuccess && (
-        <div className="mb-4 p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center justify-between">
+        <div className="mb-4 p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center justify-between animate-in fade-in">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>{actionSuccess}</span>
           </div>
-          <button onClick={() => setActionSuccess(null)} className="text-emerald-600 hover:text-emerald-900">
+          <button onClick={() => setActionSuccess(null)} className="text-emerald-600 hover:text-emerald-900 cursor-pointer">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
 
       {actionError && (
-        <div className="mb-4 p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between">
+        <div className="mb-4 p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between animate-in fade-in">
           <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-rose-600" />
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
             <span>{actionError}</span>
           </div>
-          <button onClick={() => setActionError(null)} className="text-rose-600 hover:text-rose-900">
+          <button onClick={() => setActionError(null)} className="text-rose-600 hover:text-rose-900 cursor-pointer">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -236,7 +299,7 @@ export default function EmployeesPage() {
             <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
             <input
               type="text"
-              placeholder="Search by name, role, email..."
+              placeholder="Search by name, email, designation..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-600"
@@ -266,8 +329,9 @@ export default function EmployeesPage() {
             className="flex-1 sm:flex-none px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
           >
             <option value="">All Statuses</option>
-            <option value="ACTIVE">Active Only</option>
-            <option value="INACTIVE">Inactive (Deactivated)</option>
+            <option value="ACTIVE">Active Staff</option>
+            <option value="RESTRICTED">Restricted Access</option>
+            <option value="INACTIVE">Inactive</option>
           </select>
         </div>
 
@@ -296,14 +360,14 @@ export default function EmployeesPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs min-w-[720px]">
+            <table className="w-full text-left border-collapse text-xs min-w-[760px]">
               <thead className="sticky top-0 bg-slate-50 z-10">
                 <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider">
                   <th className="py-3 px-4">Employee</th>
                   <th className="py-3 px-4">Role & Status</th>
                   <th className="py-3 px-4">Department & Title</th>
                   <th className="py-3 px-4">Contact</th>
-                  <th className="py-3 px-4">Joined</th>
+                  <th className="py-3 px-4">Joined Date</th>
                   <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
@@ -313,9 +377,17 @@ export default function EmployeesPage() {
                     {/* Employee Name & Avatar */}
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-700 to-blue-500 text-white flex items-center justify-center font-bold text-xs shrink-0">
-                          {emp.name.charAt(0)}
-                        </div>
+                        {emp.avatarUrl ? (
+                          <img
+                            src={emp.avatarUrl}
+                            alt={emp.name}
+                            className="w-8 h-8 rounded-full object-cover border border-slate-200 shrink-0"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-700 to-blue-500 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                            {emp.name.charAt(0)}
+                          </div>
+                        )}
                         <div>
                           <p className="font-semibold text-slate-900">{emp.name}</p>
                           <p className="text-[11px] text-slate-400">{emp.email}</p>
@@ -328,13 +400,15 @@ export default function EmployeesPage() {
                       <div className="flex flex-col gap-1 items-start">
                         <RoleBadge role={emp.role} />
                         <span
-                          className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                          className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${
                             emp.status === "ACTIVE"
                               ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : emp.status === "RESTRICTED"
+                              ? "bg-rose-50 text-rose-700 border border-rose-200"
                               : "bg-slate-100 text-slate-500 border border-slate-200 line-through"
                           }`}
                         >
-                          {emp.status}
+                          {emp.status === "RESTRICTED" ? "ACCESS RESTRICTED" : emp.status}
                         </span>
                       </div>
                     </td>
@@ -364,40 +438,68 @@ export default function EmployeesPage() {
                       </div>
                     </td>
 
-                    {/* Joined */}
-                    <td className="py-3.5 px-4 text-slate-500">
-                      {new Date(emp.dateJoined).toLocaleDateString()}
+                    {/* Joined Date (Standardized DD-MM-YYYY) */}
+                    <td className="py-3.5 px-4 text-slate-600 font-medium">
+                      {formatDate(emp.dateJoined)}
                     </td>
 
                     {/* Actions */}
                     <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {/* If target is ADMIN and logged-in user is HR: Protected */}
+                      <div className="flex items-center justify-end gap-1">
+                        {/* 1. View Button (Eye icon) */}
+                        <button
+                          onClick={() => setViewingEmployee(emp)}
+                          className="p-1.5 rounded-md hover:bg-slate-100 text-slate-600 hover:text-indigo-600 transition-colors cursor-pointer"
+                          title="View Employee Profile"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* Executive Protection */}
                         {user?.role === "HR" && emp.role === "ADMIN" ? (
                           <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                             Executive Protected
                           </span>
                         ) : (
                           <>
-                            {/* Edit button: Admin, HR (non-admin), or Employee editing self */}
+                            {/* 2. Edit Button */}
                             {(isAdmin || (user?.role === "HR" && emp.role !== "ADMIN") || user?.id === emp.id) && (
                               <button
                                 onClick={() => handleOpenEdit(emp)}
-                                className="p-1.5 rounded-md hover:bg-slate-100 text-slate-600 hover:text-indigo-600 transition-colors"
+                                className="p-1.5 rounded-md hover:bg-slate-100 text-slate-600 hover:text-indigo-600 transition-colors cursor-pointer"
                                 title="Edit Record"
                               >
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>
                             )}
 
-                            {/* Deactivate soft-delete: Admin or HR only on non-admin */}
-                            {(isAdmin || (user?.role === "HR" && emp.role !== "ADMIN")) && emp.status === "ACTIVE" && (
+                            {/* 3. Restrict Access Button */}
+                            {(isAdmin || (user?.role === "HR" && emp.role !== "ADMIN")) && emp.id !== user?.id && (
                               <button
-                                onClick={() => handleDeactivate(emp)}
-                                className="p-1.5 rounded-md hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors"
-                                title="Soft-Delete (Deactivate)"
+                                onClick={() => handleToggleRestrict(emp)}
+                                className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+                                  emp.status === "RESTRICTED"
+                                    ? "hover:bg-emerald-50 text-emerald-600 hover:text-emerald-700"
+                                    : "hover:bg-amber-50 text-amber-600 hover:text-amber-700"
+                                }`}
+                                title={emp.status === "RESTRICTED" ? "Restore Access" : "Restrict Access (Revoke Login)"}
                               >
-                                <UserX className="w-3.5 h-3.5" />
+                                {emp.status === "RESTRICTED" ? (
+                                  <ShieldCheck className="w-3.5 h-3.5" />
+                                ) : (
+                                  <ShieldAlert className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            )}
+
+                            {/* 4. Permanent Delete Button */}
+                            {isAdmin && emp.id !== user?.id && (
+                              <button
+                                onClick={() => setConfirmDeleteEmployee(emp)}
+                                className="p-1.5 rounded-md hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                                title="Permanent Delete (Cascade Purge)"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             )}
                           </>
@@ -416,21 +518,213 @@ export default function EmployeesPage() {
         )}
       </div>
 
-      {/* Modal: Add Employee (Admin & HR) */}
+      {/* Modal: View Employee Details (Requirement 2) */}
+      {viewingEmployee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full max-h-[90dvh] flex flex-col overflow-hidden animate-in zoom-in-95">
+            <div className="bg-slate-900 text-white p-5 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                {viewingEmployee.avatarUrl ? (
+                  <img
+                    src={viewingEmployee.avatarUrl}
+                    alt={viewingEmployee.name}
+                    className="w-12 h-12 rounded-full object-cover border-2 border-indigo-400 shadow-sm shrink-0"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-600 to-blue-500 text-white flex items-center justify-center font-bold text-lg shrink-0">
+                    {viewingEmployee.name.charAt(0)}
+                  </div>
+                )}
+                <div>
+                  <h3 className="font-bold text-base">{viewingEmployee.name}</h3>
+                  <p className="text-xs text-indigo-300">{viewingEmployee.email}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setViewingEmployee(null)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 text-xs overflow-y-auto flex-1">
+              <div className="flex items-center gap-2">
+                <RoleBadge role={viewingEmployee.role} />
+                <span
+                  className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                    viewingEmployee.status === "ACTIVE"
+                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                      : viewingEmployee.status === "RESTRICTED"
+                      ? "bg-rose-50 text-rose-700 border border-rose-200"
+                      : "bg-slate-100 text-slate-500 border border-slate-200"
+                  }`}
+                >
+                  {viewingEmployee.status === "RESTRICTED" ? "ACCESS RESTRICTED" : viewingEmployee.status}
+                </span>
+              </div>
+
+              <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 grid grid-cols-2 gap-3 text-slate-700">
+                <div>
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Designation</span>
+                  <p className="font-bold text-slate-900 mt-0.5">{viewingEmployee.designation}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Department</span>
+                  <p className="font-bold text-slate-900 mt-0.5">{viewingEmployee.department}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Phone</span>
+                  <p className="font-medium text-slate-800 mt-0.5">{viewingEmployee.phone || "Not provided"}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Date Joined</span>
+                  <p className="font-medium text-slate-800 mt-0.5">{formatDate(viewingEmployee.dateJoined)}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl bg-indigo-50/60 border border-indigo-100">
+                  <div className="flex items-center gap-1.5 text-indigo-700 font-semibold text-[11px]">
+                    <Briefcase className="w-3.5 h-3.5" />
+                    <span>Assigned Tasks</span>
+                  </div>
+                  <p className="text-xl font-bold text-indigo-950 mt-1">
+                    {viewingEmployee._count?.assignedTasks || 0}
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-blue-50/60 border border-blue-100">
+                  <div className="flex items-center gap-1.5 text-blue-700 font-semibold text-[11px]">
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>Leave Requests</span>
+                  </div>
+                  <p className="text-xl font-bold text-blue-950 mt-1">
+                    {viewingEmployee._count?.leaves || 0}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex justify-end shrink-0">
+              <button
+                onClick={() => setViewingEmployee(null)}
+                className="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 font-medium rounded-lg text-xs cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Permanent Cascading Delete Confirmation (Requirement 10) */}
+      {confirmDeleteEmployee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-5 space-y-4 animate-in zoom-in-95">
+            <div className="flex items-center gap-3 text-rose-600">
+              <div className="p-2.5 rounded-full bg-rose-50 border border-rose-200 shrink-0">
+                <Trash2 className="w-5 h-5 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-slate-900">Permanently Delete Employee?</h3>
+                <p className="text-xs text-slate-500">{confirmDeleteEmployee.name} ({confirmDeleteEmployee.email})</p>
+              </div>
+            </div>
+
+            <div className="bg-rose-50/70 border border-rose-200 rounded-xl p-3 text-xs text-rose-800 space-y-1.5">
+              <p className="font-semibold">This action cannot be undone.</p>
+              <ul className="list-disc pl-4 space-y-1 text-[11px] text-rose-700">
+                <li>Permanently deletes this employee&apos;s salary records, payslips, leaves, and notifications.</li>
+                <li>Safely unassigns their tasks without deleting shared project workflows.</li>
+                <li>Projects and client accounts will be fully preserved.</li>
+              </ul>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => setConfirmDeleteEmployee(null)}
+                className="px-3.5 py-1.5 text-slate-600 hover:bg-slate-100 rounded-lg text-xs cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={handlePermanentDelete}
+                className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-medium rounded-lg text-xs flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
+              >
+                {isSubmitting ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Purging Records...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Permanently Delete</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Add Employee (Requirement 1 - Photo Field included) */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-lg w-full max-h-[90dvh] flex flex-col overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-lg w-full max-h-[90dvh] flex flex-col overflow-hidden animate-in zoom-in-95">
             <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
               <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                 <UserPlus className="w-4 h-4 text-indigo-600" />
                 Add New Employee Account
               </h3>
-              <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-700">
+              <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <form onSubmit={handleCreateEmployee} className="p-4 sm:p-5 space-y-3.5 text-xs overflow-y-auto flex-1">
+              {/* Photo Upload Field (Requirement 1) */}
+              <div className="flex items-center gap-3.5 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="w-12 h-12 rounded-full overflow-hidden bg-white border border-slate-300 flex items-center justify-center shrink-0">
+                  {formData.avatarUrl ? (
+                    <img src={formData.avatarUrl} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <Camera className="w-5 h-5 text-slate-400" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <label className="block font-semibold text-slate-700 mb-1">Employee Photo</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setFormData({ ...formData, avatarUrl: reader.result as string });
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                    className="text-xs text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                  />
+                </div>
+                {formData.avatarUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, avatarUrl: "" })}
+                    className="text-xs text-rose-600 hover:text-rose-800 cursor-pointer font-medium"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Full Name</label>
@@ -525,6 +819,7 @@ export default function EmployeesPage() {
               <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2 shrink-0">
                 <button
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() => setIsAddModalOpen(false)}
                   className="px-3 py-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                 >
@@ -532,9 +827,17 @@ export default function EmployeesPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 gradient-brand text-white font-medium rounded-lg hover:opacity-95 transition-all shadow-xs cursor-pointer"
+                  disabled={isSubmitting}
+                  className="px-4 py-1.5 gradient-brand text-white font-medium rounded-lg hover:opacity-95 transition-all shadow-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
                 >
-                  Save Employee
+                  {isSubmitting ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving Employee...</span>
+                    </>
+                  ) : (
+                    <span>Save Employee</span>
+                  )}
                 </button>
               </div>
             </form>
@@ -542,21 +845,59 @@ export default function EmployeesPage() {
         </div>
       )}
 
-      {/* Modal: Edit Employee */}
+      {/* Modal: Edit Employee (Requirement 1 - Photo Field included) */}
       {isEditModalOpen && editingEmployee && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-lg w-full max-h-[90dvh] flex flex-col overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-lg w-full max-h-[90dvh] flex flex-col overflow-hidden animate-in zoom-in-95">
             <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
               <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                 <Edit2 className="w-4 h-4 text-indigo-600" />
                 Edit Employee: {editingEmployee.name}
               </h3>
-              <button onClick={() => setIsEditModalOpen(false)} className="text-slate-400 hover:text-slate-700">
+              <button onClick={() => setIsEditModalOpen(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <form onSubmit={handleUpdateEmployee} className="p-4 sm:p-5 space-y-3.5 text-xs overflow-y-auto flex-1">
+              {/* Photo Upload in Edit */}
+              <div className="flex items-center gap-3.5 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="w-12 h-12 rounded-full overflow-hidden bg-white border border-slate-300 flex items-center justify-center shrink-0">
+                  {editFormData.avatarUrl ? (
+                    <img src={editFormData.avatarUrl} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <Camera className="w-5 h-5 text-slate-400" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <label className="block font-semibold text-slate-700 mb-1">Employee Photo</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setEditFormData({ ...editFormData, avatarUrl: reader.result as string });
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                    className="text-xs text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                  />
+                </div>
+                {editFormData.avatarUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setEditFormData({ ...editFormData, avatarUrl: "" })}
+                    className="text-xs text-rose-600 hover:text-rose-800 cursor-pointer font-medium"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+
               {isAdminOrHR ? (
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -616,7 +957,8 @@ export default function EmployeesPage() {
                         className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
                       >
                         <option value="ACTIVE">ACTIVE</option>
-                        <option value="INACTIVE">INACTIVE (Deactivated)</option>
+                        <option value="RESTRICTED">RESTRICTED</option>
+                        <option value="INACTIVE">INACTIVE</option>
                       </select>
                     </div>
                     <div>
@@ -648,10 +990,10 @@ export default function EmployeesPage() {
                   </div>
                 </>
               ) : (
-                /* Employee editing self: only limited fields per spec */
+                /* Employee editing self */
                 <div>
                   <p className="text-slate-500 mb-2">
-                    As an employee, you can update your personal contact phone number. Other fields require HR or Admin approval.
+                    You can update your personal contact phone number and photo. Other fields require HR or Admin approval.
                   </p>
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">Phone Number</label>
@@ -669,6 +1011,7 @@ export default function EmployeesPage() {
               <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2 shrink-0">
                 <button
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() => setIsEditModalOpen(false)}
                   className="px-3 py-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                 >
@@ -676,9 +1019,17 @@ export default function EmployeesPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 gradient-brand text-white font-medium rounded-lg hover:opacity-95 transition-all shadow-xs cursor-pointer"
+                  disabled={isSubmitting}
+                  className="px-4 py-1.5 gradient-brand text-white font-medium rounded-lg hover:opacity-95 transition-all shadow-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
                 >
-                  Save Changes
+                  {isSubmitting ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving Changes...</span>
+                    </>
+                  ) : (
+                    <span>Save Changes</span>
+                  )}
                 </button>
               </div>
             </form>

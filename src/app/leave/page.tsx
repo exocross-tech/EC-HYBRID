@@ -15,7 +15,9 @@ import {
   X,
   MessageSquare,
   ShieldCheck,
+  Loader2,
 } from "lucide-react";
+import { formatDate } from "@/lib/formatDate";
 
 interface LeaveRequest {
   id: string;
@@ -60,6 +62,7 @@ export default function LeavePage() {
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isAdmin = user?.role === "ADMIN";
   const isManager = user?.role === "MANAGER";
@@ -92,6 +95,7 @@ export default function LeavePage() {
   const handleRequestLeave = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionError(null);
+    setIsSubmitting(true);
 
     try {
       const res = await fetch("/api/leaves", {
@@ -116,6 +120,8 @@ export default function LeavePage() {
       }
     } catch (err: any) {
       setActionError(err.message || "Network error");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -131,6 +137,7 @@ export default function LeavePage() {
     e.preventDefault();
     if (!selectedLeave) return;
     setActionError(null);
+    setIsSubmitting(true);
 
     try {
       const res = await fetch(`/api/leaves/${selectedLeave.id}`, {
@@ -156,6 +163,8 @@ export default function LeavePage() {
       }
     } catch (err: any) {
       setActionError(err.message || "Network error");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -298,8 +307,8 @@ export default function LeavePage() {
                         <div className="flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5 text-slate-400" />
                           <span>
-                            {new Date(leave.startDate).toLocaleDateString()} &mdash;{" "}
-                            {new Date(leave.endDate).toLocaleDateString()}
+                            {formatDate(leave.startDate)} &mdash;{" "}
+                            {formatDate(leave.endDate)}
                           </span>
                         </div>
                       </td>
@@ -427,9 +436,11 @@ export default function LeavePage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 gradient-brand text-white font-medium rounded-lg hover:opacity-95 transition-all shadow-xs cursor-pointer"
+                  disabled={isSubmitting}
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 gradient-brand text-white font-medium rounded-lg hover:opacity-95 transition-all shadow-xs cursor-pointer disabled:opacity-50"
                 >
-                  Submit Request
+                  {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{isSubmitting ? "Submitting..." : "Submit Request"}</span>
                 </button>
               </div>
             </form>
@@ -454,8 +465,8 @@ export default function LeavePage() {
             <form onSubmit={handleSubmitReview} className="p-4 sm:p-5 space-y-3.5 text-xs overflow-y-auto flex-1">
               <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 space-y-1">
                 <p>
-                  <strong>Dates:</strong> {new Date(selectedLeave.startDate).toLocaleDateString()} to{" "}
-                  {new Date(selectedLeave.endDate).toLocaleDateString()}
+                  <strong>Dates:</strong> {formatDate(selectedLeave.startDate)} to{" "}
+                  {formatDate(selectedLeave.endDate)}
                 </p>
                 <p>
                   <strong>Type:</strong> {selectedLeave.leaveType}
@@ -494,13 +505,15 @@ export default function LeavePage() {
                 </button>
                 <button
                   type="submit"
-                  className={`px-4 py-1.5 text-white font-medium rounded-lg shadow-xs cursor-pointer ${
+                  disabled={isSubmitting}
+                  className={`inline-flex items-center gap-1.5 px-4 py-1.5 text-white font-medium rounded-lg shadow-xs cursor-pointer disabled:opacity-50 ${
                     reviewAction === "APPROVED"
                       ? "bg-emerald-600 hover:bg-emerald-700"
                       : "bg-rose-600 hover:bg-rose-700"
                   }`}
                 >
-                  Confirm {reviewAction}
+                  {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{isSubmitting ? "Processing..." : `Confirm ${reviewAction}`}</span>
                 </button>
               </div>
             </form>
