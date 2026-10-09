@@ -33,8 +33,10 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const loadStats = async () => {
-    setLoading(true);
+  const loadStats = async (isBackground = false) => {
+    if (!isBackground && !stats) {
+      setLoading(true);
+    }
     try {
       const res = await fetch("/api/dashboard/stats");
       if (res.ok) {
@@ -50,14 +52,14 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (user) {
-      loadStats();
+      loadStats(false);
     }
   }, [user]);
 
-  // Real-time synchronization: auto-refreshes metrics, audit trail, and graphs
-  useRealtimeSync(() => {
-    if (user) {
-      loadStats();
+  // Real-time synchronization: silently auto-refreshes metrics without UI flicker or layout shifts
+  useRealtimeSync((event) => {
+    if (user && event?.type !== "PING" && event?.type !== "CONNECTED") {
+      loadStats(true);
     }
   });
 

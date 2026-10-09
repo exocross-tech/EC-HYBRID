@@ -6,7 +6,11 @@ export const metadata: Metadata = {
   title: "EC HYBRID | Enterprise Operations Platform",
   description: "Unified organization management platform: CRM, HR, Projects, Payroll, and Operations.",
   icons: {
-    icon: "/logo.png",
+    icon: [
+      { url: "/logo.png", type: "image/png" },
+    ],
+    shortcut: "/logo.png",
+    apple: "/logo.png",
   },
 };
 
