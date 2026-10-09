@@ -18,7 +18,8 @@ import {
   TrendingUp,
   Globe,
   Radio,
-  X
+  X,
+} from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { formatDate, formatDateTime } from "@/lib/formatDate";
 
