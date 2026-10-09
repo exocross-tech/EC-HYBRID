@@ -137,16 +137,6 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Create default salary record (INR)
-    await prisma.salary.create({
-      data: {
-        userId: newEmployee.id,
-        basicPay: 50000,
-        allowances: 10000,
-        deductions: 5000,
-        netSalary: 55000,
-      },
-    });
 
     // Audit log
     await prisma.auditLog.create({

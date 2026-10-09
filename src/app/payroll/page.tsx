@@ -82,6 +82,7 @@ export default function PayrollPage() {
   const [activeTab, setActiveTab] = useState<"payslips" | "structures">("payslips");
   const [payslips, setPayslips] = useState<Payslip[]>([]);
   const [salaries, setSalaries] = useState<SalaryStructure[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -99,6 +100,15 @@ export default function PayrollPage() {
     allowances: 0,
     deductions: 0,
   });
+  const [showAddStructureModal, setShowAddStructureModal] = useState(false);
+  const [newSalaryForm, setNewSalaryForm] = useState({
+    userId: "",
+    basicPay: 50000,
+    allowances: 10000,
+    deductions: 5000,
+  });
+  const [savingNewSalary, setSavingNewSalary] = useState(false);
+
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [generateMonth, setGenerateMonth] = useState<number>(new Date().getMonth() + 1);
   const [generateYear, setGenerateYear] = useState<number>(new Date().getFullYear());
@@ -119,10 +129,17 @@ export default function PayrollPage() {
       }
 
       if (isAdminOrHR) {
-        const salariesRes = await fetch("/api/payroll/salaries");
+        const [salariesRes, empRes] = await Promise.all([
+          fetch("/api/payroll/salaries"),
+          fetch("/api/employees"),
+        ]);
         if (salariesRes.ok) {
           const sData = await salariesRes.json();
           setSalaries(sData.salaries || []);
+        }
+        if (empRes.ok) {
+          const eData = await empRes.json();
+          setEmployees(eData.employees || []);
         }
       }
     } catch (err: any) {
@@ -166,6 +183,38 @@ export default function PayrollPage() {
       }
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to update salary");
+    }
+  };
+
+  // Handle Create New Salary Structure
+  const handleCreateSalaryStructure = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSalaryForm.userId) {
+      setErrorMsg("Please select an employee or admin account");
+      return;
+    }
+    setSavingNewSalary(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetch("/api/payroll/salaries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newSalaryForm),
+      });
+      if (res.ok) {
+        setSuccessMsg("Salary structure configured successfully");
+        setShowAddStructureModal(false);
+        setNewSalaryForm({ userId: "", basicPay: 50000, allowances: 10000, deductions: 5000 });
+        fetchData();
+        setTimeout(() => setSuccessMsg(null), 4000);
+      } else {
+        const err = await res.json();
+        setErrorMsg(err.error || "Failed to create salary structure");
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to create salary structure");
+    } finally {
+      setSavingNewSalary(false);
     }
   };
 
@@ -578,7 +627,7 @@ export default function PayrollPage() {
       {isAdminOrHR && activeTab === "structures" && (
         <div className="space-y-4">
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+            <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
                   Employee Salary Master Directory
@@ -587,6 +636,14 @@ export default function PayrollPage() {
                   Pre-configured compensation packages. Updates here automatically compute net salary in INR and apply to subsequent payslips.
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={() => setShowAddStructureModal(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer shrink-0 self-start sm:self-auto"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Salary Structure</span>
+              </button>
             </div>
 
             <div className="overflow-x-auto">
@@ -963,6 +1020,124 @@ export default function PayrollPage() {
                   ) : (
                     <span>Confirm & Run Payroll</span>
                   )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ADD SALARY STRUCTURE MODAL (ADMIN & HR) */}
+      {showAddStructureModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full max-h-[90dvh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
+            <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between shrink-0">
+              <div>
+                <h3 className="text-sm font-bold">Add Salary Structure</h3>
+                <p className="text-xs text-slate-300 mt-0.5">
+                  Manually configure compensation package for an employee or admin
+                </p>
+              </div>
+              <button
+                onClick={() => setShowAddStructureModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateSalaryStructure} className="p-4 sm:p-6 space-y-4 text-xs overflow-y-auto flex-1">
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">Select Employee / Admin *</label>
+                <select
+                  required
+                  value={newSalaryForm.userId}
+                  onChange={(e) => setNewSalaryForm({ ...newSalaryForm, userId: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-indigo-500 font-medium"
+                >
+                  <option value="">-- Choose Account --</option>
+                  {employees
+                    .filter((e) => !salaries.some((s) => s.userId === e.id))
+                    .map((emp) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.name} ({emp.role}) - {emp.designation || emp.department || emp.email}
+                      </option>
+                    ))}
+                </select>
+                {employees.filter((e) => !salaries.some((s) => s.userId === e.id)).length === 0 && (
+                  <p className="text-[11px] text-amber-600 mt-1">
+                    All existing staff and admin accounts already have salary structures configured.
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">Monthly Basic Salary (₹) *</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1000"
+                  required
+                  value={newSalaryForm.basicPay}
+                  onChange={(e) =>
+                    setNewSalaryForm({ ...newSalaryForm, basicPay: parseFloat(e.target.value) || 0 })
+                  }
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-indigo-500 font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">Monthly Allowances (HRA, Travel, etc.) (₹)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="500"
+                  value={newSalaryForm.allowances}
+                  onChange={(e) =>
+                    setNewSalaryForm({ ...newSalaryForm, allowances: parseFloat(e.target.value) || 0 })
+                  }
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-indigo-500 font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">Monthly Deductions (PF, TDS, etc.) (₹)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="500"
+                  value={newSalaryForm.deductions}
+                  onChange={(e) =>
+                    setNewSalaryForm({ ...newSalaryForm, deductions: parseFloat(e.target.value) || 0 })
+                  }
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-indigo-500 font-medium"
+                />
+              </div>
+
+              {/* Calculated Net Preview */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5">
+                <span className="text-[11px] text-slate-500 font-semibold">Calculated Net Salary (Take-Home)</span>
+                <p className="text-xl font-black text-indigo-700 mt-1">
+                  {formatINR(Math.max(0, newSalaryForm.basicPay + newSalaryForm.allowances - newSalaryForm.deductions), true)}
+                </p>
+                <p className="text-[10px] text-slate-400 mt-0.5">Computed as Basic + Allowances - Deductions</p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowAddStructureModal(false)}
+                  className="px-4 py-2 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingNewSalary}
+                  className="flex items-center gap-1.5 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl font-bold shadow-xs transition-colors cursor-pointer"
+                >
+                  {savingNewSalary ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : null}
+                  <span>Save Structure</span>
                 </button>
               </div>
             </form>

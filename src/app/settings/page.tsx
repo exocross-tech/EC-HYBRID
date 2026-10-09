@@ -256,8 +256,10 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
                   <ImageIcon className="w-5 h-5 text-indigo-600" />
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900">Brand Logo Management</h3>
-                    <p className="text-xs text-slate-500">Upload your organization logo to appear on the sidebar, header, and official PDF documents.</p>
+                    <h3 className="text-sm font-bold text-slate-900">Company Logo for Invoices & Quotations</h3>
+                    <p className="text-xs text-slate-500">
+                      Upload your client-facing company logo to appear dynamically on official PDF quotations and invoices. Note: The EC HYBRID platform logo on the navigation header remains standard.
+                    </p>
                   </div>
                 </div>
 
@@ -275,7 +277,7 @@ export default function SettingsPage() {
                         <ImageIcon className="w-8 h-8 text-slate-400" />
                       )}
                     </div>
-                    <span className="text-[10px] text-slate-400 font-medium">Current Logo</span>
+                    <span className="text-[10px] text-slate-400 font-medium">Invoice Logo</span>
                   </div>
 
                   {/* Upload Actions */}
@@ -397,31 +399,31 @@ export default function SettingsPage() {
                   <Shield className="w-5 h-5 text-indigo-600" />
                   <div>
                     <h3 className="text-sm font-bold text-slate-900">Legal Tax Identification Numbers</h3>
-                    <p className="text-xs text-slate-500">Government registrations printed on GST tax invoices.</p>
+                    <p className="text-xs text-slate-500">Government registrations printed on invoices (Optional for startups).</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                   <div>
-                    <label className="block text-slate-700 font-semibold mb-1">GSTIN (Goods & Services Tax) *</label>
+                    <label className="block text-slate-700 font-semibold mb-1">GSTIN (Optional)</label>
                     <input
                       type="text"
-                      required
                       value={form.gstin}
                       onChange={(e) => setForm({ ...form, gstin: e.target.value.toUpperCase() })}
                       className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-indigo-500 font-bold uppercase"
+                      placeholder="Optional"
                     />
                     <p className="text-[10px] text-slate-400 mt-1">15-digit Indian GST number</p>
                   </div>
 
                   <div>
-                    <label className="block text-slate-700 font-semibold mb-1">PAN (Permanent Account Number) *</label>
+                    <label className="block text-slate-700 font-semibold mb-1">PAN (Optional)</label>
                     <input
                       type="text"
-                      required
                       value={form.pan}
                       onChange={(e) => setForm({ ...form, pan: e.target.value.toUpperCase() })}
                       className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-indigo-500 font-bold uppercase"
+                      placeholder="Optional"
                     />
                     <p className="text-[10px] text-slate-400 mt-1">10-digit income tax identifier</p>
                   </div>
@@ -433,6 +435,7 @@ export default function SettingsPage() {
                       value={form.cin}
                       onChange={(e) => setForm({ ...form, cin: e.target.value.toUpperCase() })}
                       className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-indigo-500 font-medium uppercase"
+                      placeholder="Optional"
                     />
                     <p className="text-[10px] text-slate-400 mt-1">Ministry of Corporate Affairs ID</p>
                   </div>

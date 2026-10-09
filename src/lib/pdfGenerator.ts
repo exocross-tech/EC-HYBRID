@@ -1,4 +1,11 @@
 import jsPDF from "jspdf";
+import {
+  CYBER_HEADER_BG,
+  MINIMALIST_LOGO,
+  ICON_PROJECT,
+  ICON_TERMS,
+  ICON_ACCEPTANCE,
+} from "./pdfAssets";
 
 export interface PayslipPDFData {
   id: string;
@@ -33,8 +40,14 @@ function formatCurrencyINR(amount: number): string {
   });
 }
 
+function formatAmountINR(amount: number): string {
+  return "Rs. " + amount.toLocaleString("en-IN", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+}
+
 function numberToWordsINR(amount: number): string {
-  // Simple words representation for common numbers
   const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
     "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
   const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
@@ -561,6 +574,36 @@ export function downloadExecutiveReportPDF(report: any) {
   doc.save(`EC_HYBRID_Executive_Report_${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
+export interface InvoiceItem {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+}
+
+export interface InvoiceCustomData {
+  fromDetails?: {
+    companyName?: string;
+    address?: string;
+    phone?: string;
+    email?: string;
+    website?: string;
+    gstin?: string;
+  };
+  toDetails?: {
+    company?: string;
+    contactPerson?: string;
+    address?: string;
+    email?: string;
+    phone?: string;
+  };
+  projectHeadline?: string;
+  terms?: string[];
+  notes?: string;
+  taxRate?: number;
+  subtitle?: string;
+}
+
 export interface InvoicePDFData {
   id: string;
   invoiceNumber: string;
@@ -581,12 +624,8 @@ export interface InvoicePDFData {
   project?: {
     name: string;
   } | null;
-  items: Array<{
-    description: string;
-    quantity: number;
-    unitPrice: number;
-    amount: number;
-  }>;
+  items: InvoiceItem[];
+  customData?: InvoiceCustomData;
 }
 
 export type InvoicePDFTemplate = "modern_tech" | "classic_corporate";
@@ -602,40 +641,64 @@ function formatPDFDate(dateInput: string | Date | undefined): string {
   }
 }
 
-function renderExocrossLogo(doc: jsPDF, x: number, y: number, org?: any) {
+/**
+ * Renders company logo in PDF headers.
+ * If user uploaded custom logo in Org Settings, renders it.
+ * Otherwise renders default Exocross logo asset.
+ */
+function renderInvoiceLogo(
+  doc: jsPDF,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  org?: any,
+  fallbackBase64?: string
+) {
   if (org?.logoUrl && typeof org.logoUrl === "string" && org.logoUrl.startsWith("data:image/")) {
     try {
       const format = org.logoUrl.includes("png") ? "PNG" : "JPEG";
-      doc.addImage(org.logoUrl, format, x, y, 16, 16);
+      doc.addImage(org.logoUrl, format, x, y, w, h);
       return;
     } catch {
-      // Fallback to vector logo below
+      // Fallback
     }
   }
 
-  // Official Exocross Vector Monogram Logo
-  // Solid Dark Square Box
-  doc.setFillColor(15, 23, 42); // #0F172A slate-900
-  doc.roundedRect(x, y, 16, 16, 1.2, 1.2, "F");
+  if (fallbackBase64) {
+    try {
+      const format = fallbackBase64.includes("jpeg") || fallbackBase64.includes("jpg") ? "JPEG" : "PNG";
+      doc.addImage(fallbackBase64, format, x, y, w, h);
+      return;
+    } catch {
+      // Fallback to text box
+    }
+  }
 
-  // "EC" monogram inside
+  // Fallback vector EC block
+  doc.setFillColor(17, 24, 39);
+  doc.rect(x, y, w, h, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
-  doc.text("EC", x + 8, y + 11.2, { align: "center" });
-
-  // "EXOCROSS" text below
-  doc.setTextColor(15, 23, 42);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.text("EXOCROSS", x + 8, y + 21, { align: "center" });
+  doc.setFontSize(12);
+  doc.text("EC", x + w / 2, y + h / 2 + 2, { align: "center" });
 }
 
 /**
- * Template 1: Formal Corporate Standard
- * Minimalist monochrome corporate layout with Exocross square monogram logo,
- * 4-column itemized breakdown (Description | Qty | Rate | Amount),
- * standard 4-point commercial terms, and formal dual signatory block.
+ * ============================================================================
+ * TEMPLATE 1: MINIMALIST MONOCHROME QUOTATION (1-Page)
+ * Exact replication of user's provided PDF:
+ * - Square EC Exocross Monogram / Custom Logo
+ * - Bold tracking QUOTATION title & metadata bar
+ * - Solid black hairline divider
+ * - 2-Column FROM / TO details
+ * - Project Headline
+ * - 4-Column Table: Description | Qty | Rate | Amount
+ * - Subtotal / Tax GST / Total summary block
+ * - 4-Point Commercial Terms & Conditions
+ * - Dual formal signatory lines (Authorised signatory – Exocross & Client acceptance)
+ * - Centered "Thank you for your business."
+ * ============================================================================
  */
 export function generateClassicCorporatePDF(invoice: InvoicePDFData, org?: any) {
   const doc = new jsPDF({
@@ -649,278 +712,247 @@ export function generateClassicCorporatePDF(invoice: InvoicePDFData, org?: any) 
   const contentWidth = pageWidth - margin * 2; // 178mm
   const rightMarginX = pageWidth - margin; // 194mm
 
-  const compName = org?.companyName || "Exocross";
-  const officialEmail = org?.officialEmail || "exocross.tech@gmail.com";
-  const phone = org?.phone || "7604830742 / 8124473373";
-  const website = org?.website || "exocross.com";
-  const gstin = org?.gstin || "33AABCE1234F1Z5";
-  const address = org?.addressLine1
-    ? `${org.addressLine1}, ${org.addressLine2 ? org.addressLine2 + ", " : ""}${org.city || "Chennai"}, ${org.state || "Tamil Nadu"} - ${org.postalCode || "600001"}`
-    : "Chennai, Tamil Nadu, India";
+  const custom = invoice.customData || {};
+  const fromDetails = custom.fromDetails || {};
+  const toDetails = custom.toDetails || {};
 
-  // Top Left: Exocross Monogram Logo
-  renderExocrossLogo(doc, margin, 16, org);
+  // Company / From details
+  const compName = fromDetails.companyName || org?.companyName || "Exocross";
+  const compAddress = fromDetails.address || (org?.addressLine1
+    ? `${org.addressLine1}, ${org.city || "Chennai"}, ${org.state || "Tamil Nadu"}`
+    : "Chennai, Tamil Nadu");
+  const compPhone = fromDetails.phone || org?.phone || "7604830742, 8124473373";
+  const compEmail = fromDetails.email || org?.officialEmail || "exocross.tech@gmail.com";
+  const compWebsite = fromDetails.website || org?.website || "exocross.com";
+  const compGstin = fromDetails.gstin || org?.gstin || "";
 
-  // Top Right: Document Title & Meta
+  // Client / To details
+  const clientComp = toDetails.company || invoice.client.company || invoice.client.name;
+  const contactPerson = toDetails.contactPerson || invoice.client.name;
+  const clientAddr = toDetails.address || invoice.client.address || "Client Address on Record";
+  const clientEmail = toDetails.email || invoice.client.email || "";
+  const clientPhone = toDetails.phone || invoice.client.phone || "";
+
+  // Project headline
+  const projectHeadline = custom.projectHeadline || invoice.project?.name || invoice.description || "Full Stack Web Application";
+
+  // Top Left: Monogram / Company Logo
+  renderInvoiceLogo(doc, margin, 14, 18, 17, org, MINIMALIST_LOGO);
+
+  // Top Right: Title "QUOTATION"
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text(
-    `QUOTATION / TAX INVOICE No. ${invoice.invoiceNumber || "EXO-2025-001"}`,
-    rightMarginX,
-    20,
-    { align: "right" }
-  );
+  doc.setFontSize(22);
+  doc.setTextColor(17, 24, 39);
+  doc.text("QUOTATION", rightMarginX, 22, { align: "right" });
 
+  // Top Right: Meta line: No. EXO-[YYYY]-[001] | Date: [DD/MM/YYYY] | Valid until: [DD/MM/YYYY]
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
-  doc.setTextColor(71, 85, 105);
-  doc.text(`Date: ${formatPDFDate(invoice.issueDate)}`, rightMarginX, 25.5, { align: "right" });
-  doc.text(`Valid until: ${formatPDFDate(invoice.dueDate)}`, rightMarginX, 30.5, { align: "right" });
+  doc.setTextColor(75, 85, 99);
+  const metaText = `No. ${invoice.invoiceNumber || "EXO-001"}   |   Date: ${formatPDFDate(invoice.issueDate)}   |   Valid until: ${formatPDFDate(invoice.dueDate)}`;
+  doc.text(metaText, rightMarginX, 28, { align: "right" });
 
-  // Thin Divider Line
-  doc.setDrawColor(226, 232, 240);
+  // Black Divider Line
+  doc.setDrawColor(17, 24, 39);
   doc.setLineWidth(0.4);
-  doc.line(margin, 41, rightMarginX, 41);
+  doc.line(margin, 35, rightMarginX, 35);
 
-  // Two Column Address Block
+  // Two Column Addresses: FROM / TO
   const col1X = margin;
   const col2X = margin + 92;
 
-  // From:
+  // FROM Column
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text("From:", col1X, 47);
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.setTextColor(30, 41, 59);
-  doc.text(compName, col1X, 52);
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(100, 116, 139);
-  doc.text(address, col1X, 57);
-  doc.text(`Phone: ${phone}`, col1X, 62);
-  doc.text(`Email: ${officialEmail}`, col1X, 67);
-  doc.text(`Web: ${website}`, col1X, 72);
-  if (gstin) {
-    doc.text(`GSTIN: ${gstin}`, col1X, 77);
-  }
-
-  // To:
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text("To:", col2X, 47);
+  doc.setTextColor(17, 24, 39);
+  doc.text("FROM", col1X, 42);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
-  doc.setTextColor(15, 23, 42);
-  doc.text(invoice.client.company || invoice.client.name, col2X, 52);
+  doc.text(compName, col1X, 47.5);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
-  doc.setTextColor(71, 85, 105);
-  doc.text(`Attn: ${invoice.client.name}`, col2X, 57);
+  doc.setTextColor(75, 85, 99);
+  doc.text(compAddress, col1X, 52.5);
+  doc.text(`${compPhone}  |  ${compEmail}`, col1X, 57.5);
+  const webGstLine = compGstin ? `${compWebsite}  |  GSTIN: ${compGstin}` : compWebsite;
+  doc.text(webGstLine, col1X, 62.5);
 
-  const clientAddress = invoice.client.address || "Client Address on Record";
-  const addressLines = doc.splitTextToSize(clientAddress, 85);
-  doc.text(addressLines, col2X, 62);
+  // TO Column
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(17, 24, 39);
+  doc.text("TO", col2X, 42);
 
-  let clientMetaY = 62 + addressLines.length * 4.5;
-  doc.text(`Email: ${invoice.client.email}`, col2X, clientMetaY);
-  if (invoice.client.phone) {
-    clientMetaY += 4.5;
-    doc.text(`Phone: ${invoice.client.phone}`, col2X, clientMetaY);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text(clientComp, col2X, 47.5);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(75, 85, 99);
+  doc.text(`Attn: ${contactPerson}`, col2X, 52.5);
+  const clientAddrLines = doc.splitTextToSize(clientAddr, 80);
+  doc.text(clientAddrLines, col2X, 57.5);
+
+  const clientContactY = 57.5 + clientAddrLines.length * 4.2;
+  const clientContactText = [clientEmail, clientPhone].filter(Boolean).join("  |  ");
+  if (clientContactText) {
+    doc.text(clientContactText, col2X, clientContactY);
   }
 
-  // Project Title Headline
-  const projectY = Math.max(83, clientMetaY + 7);
+  // Project Headline
+  const projectY = Math.max(72, clientContactY + 6);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9.5);
-  doc.setTextColor(15, 23, 42);
-  const projectName = invoice.project?.name || invoice.description || "IT Services & Solutions";
-  doc.text(`Project: ${projectName}`, margin, projectY);
+  doc.setFontSize(9);
+  doc.setTextColor(17, 24, 39);
+  doc.text(`Project: ${projectHeadline}`, margin, projectY);
 
-  // 4-Column Table Header
-  const tableHeaderY = projectY + 5.5;
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(margin, tableHeaderY, contentWidth, 7.5, 1, 1, "FD");
+  // 4-Column Table Header: Description | Qty | Rate | Amount
+  const tableY = projectY + 5;
+  doc.setFillColor(17, 24, 39); // Solid Black
+  doc.rect(margin, tableY, contentWidth, 7, "F");
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
-  doc.setTextColor(71, 85, 105);
-  doc.text("Description", margin + 4, tableHeaderY + 5);
-  doc.text("Qty", margin + 104, tableHeaderY + 5, { align: "center" });
-  doc.text("Rate", margin + 138, tableHeaderY + 5, { align: "right" });
-  doc.text("Amount", rightMarginX - 4, tableHeaderY + 5, { align: "right" });
+  doc.setTextColor(255, 255, 255);
+  doc.text("Description", margin + 4, tableY + 4.8);
+  doc.text("Qty", margin + 112, tableY + 4.8, { align: "center" });
+  doc.text("Rate", margin + 145, tableY + 4.8, { align: "right" });
+  doc.text("Amount", rightMarginX - 4, tableY + 4.8, { align: "right" });
 
   // Table Body Rows
   const items = invoice.items && invoice.items.length > 0
     ? invoice.items
-    : [{ description: invoice.description || "IT Deliverables & Technical Services", quantity: 1, unitPrice: invoice.amount, amount: invoice.amount }];
+    : [{ description: invoice.description || "Software Engineering & Architecture Deliverables", quantity: 1, unitPrice: invoice.amount, amount: invoice.amount }];
 
-  let currentY = tableHeaderY + 7.5;
+  let currentY = tableY + 7;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
 
   for (let i = 0; i < items.length; i++) {
     const itm = items[i];
-    const descLines = doc.splitTextToSize(itm.description, 92);
-    const rowHeight = Math.max(7.5, descLines.length * 4.5 + 3);
+    const descLines = doc.splitTextToSize(itm.description, 95);
+    const rowHeight = Math.max(7, descLines.length * 4.2 + 2.8);
 
     currentY += rowHeight;
 
-    if (i % 2 === 1) {
-      doc.setFillColor(248, 250, 252);
-      doc.rect(margin, currentY - rowHeight, contentWidth, rowHeight, "F");
-    }
+    doc.setTextColor(17, 24, 39);
+    doc.text(descLines, margin + 4, currentY - rowHeight + 4.6);
 
-    doc.setTextColor(15, 23, 42);
-    doc.text(descLines, margin + 4, currentY - rowHeight + 4.8);
+    doc.setTextColor(75, 85, 99);
+    doc.text(String(itm.quantity), margin + 112, currentY - rowHeight + 4.6, { align: "center" });
 
-    doc.setTextColor(71, 85, 105);
-    doc.text(String(itm.quantity), margin + 104, currentY - rowHeight + 4.8, { align: "center" });
-
-    doc.setTextColor(71, 85, 105);
-    doc.text(formatCurrencyINR(itm.unitPrice), margin + 138, currentY - rowHeight + 4.8, { align: "right" });
+    doc.setTextColor(75, 85, 99);
+    doc.text(itm.unitPrice.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), margin + 145, currentY - rowHeight + 4.6, { align: "right" });
 
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(15, 23, 42);
-    doc.text(formatCurrencyINR(itm.amount), rightMarginX - 4, currentY - rowHeight + 4.8, { align: "right" });
+    doc.setTextColor(17, 24, 39);
+    doc.text(itm.amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), rightMarginX - 4, currentY - rowHeight + 4.6, { align: "right" });
     doc.setFont("helvetica", "normal");
 
-    // Row bottom line
+    // Row bottom separator line
     doc.setDrawColor(241, 245, 249);
     doc.line(margin, currentY, rightMarginX, currentY);
   }
 
   // Summary & Totals Block
   let summaryY = currentY + 6;
-  const totalsLabelX = rightMarginX - 68;
+  const totalsLabelX = rightMarginX - 65;
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(71, 85, 105);
-  doc.text("Subtotal:", totalsLabelX, summaryY);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(15, 23, 42);
-  doc.text(formatCurrencyINR(invoice.amount), rightMarginX - 4, summaryY, { align: "right" });
-
-  summaryY += 5;
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(71, 85, 105);
-  if (invoice.tax > 0) {
-    doc.text("Tax / GST (18%):", totalsLabelX, summaryY);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(15, 23, 42);
-    doc.text(formatCurrencyINR(invoice.tax), rightMarginX - 4, summaryY, { align: "right" });
-  } else {
-    doc.text("Tax / GST (0%):", totalsLabelX, summaryY);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(15, 23, 42);
-    doc.text("INR 0.00", rightMarginX - 4, summaryY, { align: "right" });
-  }
-
-  summaryY += 3;
-  doc.setDrawColor(15, 23, 42);
-  doc.setLineWidth(0.4);
-  doc.line(totalsLabelX, summaryY, rightMarginX, summaryY);
-
-  summaryY += 4.5;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text("Total:", totalsLabelX, summaryY);
-  doc.text(formatCurrencyINR(invoice.totalAmount), rightMarginX - 4, summaryY, { align: "right" });
-
-  summaryY += 2.5;
-  doc.line(totalsLabelX, summaryY, rightMarginX, summaryY);
-
-  // In Words
-  summaryY += 7;
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text(`In Words: ${numberToWordsINR(invoice.totalAmount)}`, margin, summaryY);
-
-  // Commercial Terms & Conditions
-  const termsY = Math.max(summaryY + 8, 184);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text("Terms & Conditions:", margin, termsY);
+  doc.setTextColor(17, 24, 39);
+  doc.text("Subtotal", totalsLabelX, summaryY);
+  doc.text(invoice.amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), rightMarginX - 4, summaryY, { align: "right" });
+
+  summaryY += 5.5;
+  const taxPercent = custom.taxRate !== undefined ? custom.taxRate : (invoice.tax > 0 ? 18 : 0);
+  doc.text(`Tax / GST (${taxPercent}%)`, totalsLabelX, summaryY);
+  doc.text(invoice.tax.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), rightMarginX - 4, summaryY, { align: "right" });
+
+  summaryY += 3;
+  doc.setDrawColor(17, 24, 39);
+  doc.setLineWidth(0.6);
+  doc.line(totalsLabelX, summaryY, rightMarginX, summaryY);
+
+  summaryY += 5.5;
+  doc.setFontSize(9.5);
+  doc.text("Total", totalsLabelX, summaryY);
+  doc.text(invoice.totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), rightMarginX - 4, summaryY, { align: "right" });
+
+  summaryY += 2;
+  doc.setLineWidth(0.3);
+  doc.line(totalsLabelX, summaryY, rightMarginX, summaryY);
+
+  // TERMS Block
+  const termsY = Math.max(summaryY + 12, 175);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(17, 24, 39);
+  doc.text("TERMS", margin, termsY);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
-  doc.setTextColor(71, 85, 105);
-  const terms = [
-    "1. Payment terms: 50% advance upon contract signing, 50% upon project handover and acceptance.",
-    "2. Validity: This quotation is valid for 30 calendar days from the date of issue.",
-    "3. Scope changes: Any features or changes requested outside the agreed scope will be quoted separately.",
-    "4. Intellectual Property: Final source code, credentials, and digital deliverables transfer to the client upon full payment."
+  doc.setTextColor(55, 65, 81);
+
+  const defaultTerms = [
+    "1.  Valid for 30 days from the date of issue.",
+    "2.  Payment: 50% advance, balance on delivery. Invoices payable within 15 days.",
+    "3.  Prices exclude third-party licences and hosting unless stated.",
+    "4.  Changes in scope will be quoted separately."
   ];
 
-  let currentTermY = termsY + 4.5;
-  terms.forEach(t => {
-    doc.text(t, margin, currentTermY);
-    currentTermY += 4;
+  const termsList = custom.terms && custom.terms.length > 0 ? custom.terms : defaultTerms;
+  let termLineY = termsY + 5;
+  termsList.forEach((term, index) => {
+    const formattedTerm = term.match(/^\d+\./) ? term : `${index + 1}.  ${term}`;
+    doc.text(formattedTerm, margin, termLineY);
+    termLineY += 4.5;
   });
 
-  // Dual Signatures
-  const signY = 244;
-  doc.setDrawColor(203, 213, 225);
+  // Dual Signatures Block (Bottom)
+  const signY = 246;
+  doc.setDrawColor(17, 24, 39);
   doc.setLineWidth(0.4);
 
   // Left Signature: Exocross
-  doc.line(margin, signY, margin + 70, signY);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.setTextColor(15, 23, 42);
-  doc.text("Authorised signatory - Exocross", margin, signY + 4.5);
+  doc.line(margin, signY, margin + 68, signY);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text(`Date: ${formatPDFDate(invoice.issueDate)}`, margin, signY + 9);
+  doc.setTextColor(55, 65, 81);
+  doc.text(`Authorised signatory – ${compName}`, margin, signY + 4.5);
 
-  // Right Signature: Client Acceptance
-  doc.line(rightMarginX - 70, signY, rightMarginX, signY);
-  doc.setFont("helvetica", "bold");
+  // Right Signature: Client acceptance
+  doc.line(rightMarginX - 72, signY, rightMarginX, signY);
+  doc.text("Client acceptance (signature, name, date)", rightMarginX - 72, signY + 4.5);
+
+  // Centered Footer: "Thank you for your business."
+  const footerY = 278;
+  doc.setFont("helvetica", "italic");
   doc.setFontSize(8);
-  doc.setTextColor(15, 23, 42);
-  doc.text("Client acceptance (signature, name, date)", rightMarginX - 70, signY + 4.5);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text("Date: ____________________", rightMarginX - 70, signY + 9);
+  doc.setTextColor(107, 114, 128);
+  doc.text("Thank you for your business.", pageWidth / 2, footerY, { align: "center" });
 
-  // Footer
-  const footerY = 282;
-  doc.setDrawColor(226, 232, 240);
-  doc.line(margin, footerY, rightMarginX, footerY);
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  doc.setTextColor(148, 163, 184);
-  doc.text(
-    `${compName}  |  Chennai, India  |  ${officialEmail}  |  ${website}`,
-    pageWidth / 2,
-    footerY + 4.5,
-    { align: "center" }
-  );
-
-  doc.save(`EXOCROSS_Invoice_${invoice.invoiceNumber}.pdf`);
+  doc.save(`Quotation_${invoice.invoiceNumber || "EXO-001"}.pdf`);
 }
 
 /**
- * Template 2: Modern Exocross Tech
- * High-tech modern IT services quote featuring section badges (PROJECT, TERMS, ACCEPTANCE),
- * itemized deliverable phase table (# | Description | Amount), highlighted total box,
- * and dual boxed signatory stamps.
+ * ============================================================================
+ * TEMPLATE 2: MODERN TECH / CYBER 2-PAGE QUOTATION
+ * Exact replication of user's provided PDF:
+ * - Page 1 & Page 2: Deep navy server illustration header banner with cyan stripe
+ * - Top Badge: Blue QUOTATION bar + dark IT Services & Solutions / Custom Future Products pill
+ * - 3 Metadata Cards: QUOTE NO. (blue), DATE (teal), VALID UNTIL (orange)
+ * - 2 Address Cards: FROM (blue accent bar) / PREPARED FOR (teal accent bar)
+ * - Project Headline with blue document icon
+ * - 3-Column Phase Deliverables Table (# | Description | Amount) with alternating rows
+ * - Page 1 Highlighted TOTAL Pill (dark pill with bright cyan amount)
+ * - Page 2: Shield TERMS bullet points
+ * - Page 2: Cyan pencil ACCEPTANCE dual signoff stamp boxes
+ * - Dark cyber footer bar on both pages with reference and "Page X of 2"
+ * ============================================================================
  */
 export function generateModernTechPDF(invoice: InvoicePDFData, org?: any) {
   const doc = new jsPDF({
@@ -930,347 +962,390 @@ export function generateModernTechPDF(invoice: InvoicePDFData, org?: any) {
   });
 
   const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
+  const pageHeight = doc.internal.pageSize.getHeight(); // 297mm
   const margin = 16;
   const contentWidth = pageWidth - margin * 2; // 178mm
   const rightMarginX = pageWidth - margin; // 194mm
 
-  const compName = org?.companyName || "Exocross";
-  const officialEmail = org?.officialEmail || "exocross.tech@gmail.com";
-  const phone = org?.phone || "7604830742 / 8124473373";
-  const website = org?.website || "exocross.com";
-  const address = org?.addressLine1
-    ? `${org.addressLine1}, ${org.addressLine2 ? org.addressLine2 + ", " : ""}${org.city || "Chennai"}, ${org.state || "Tamil Nadu"} - ${org.postalCode || "600001"}`
-    : "Chennai, Tamil Nadu, India";
+  const custom = invoice.customData || {};
+  const fromDetails = custom.fromDetails || {};
+  const toDetails = custom.toDetails || {};
 
-  // Top Left: Modern Header
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(22);
-  doc.setTextColor(15, 23, 42); // slate-900
-  doc.text("QUOTATION", margin, 22);
+  // Company details
+  const compName = fromDetails.companyName || org?.companyName || "Exocross";
+  const compAddress = fromDetails.address || (org?.addressLine1
+    ? `${org.addressLine1}, ${org.city || "Chennai"}, ${org.state || "Tamil Nadu"}`
+    : "Chennai, Tamil Nadu");
+  const compPhone = fromDetails.phone || org?.phone || "7604830742, 8124473373";
+  const compEmail = fromDetails.email || org?.officialEmail || "exocross.tech@gmail.com";
+  const compWebsite = fromDetails.website || org?.website || "exocross.com";
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139); // slate-500
-  doc.text("IT SERVICES & SOLUTIONS  |  CUSTOM FUTURE PRODUCTS", margin, 28);
+  // Client details
+  const clientComp = toDetails.company || invoice.client.company || invoice.client.name;
+  const clientAddr = toDetails.address || invoice.client.address || "Anna Nagar, Tamil Nadu";
 
-  // Top Right: Meta Strip Card
-  const metaCardW = 64;
-  const metaCardH = 20;
-  const metaCardX = rightMarginX - metaCardW;
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(metaCardX, 14, metaCardW, metaCardH, 1.5, 1.5, "FD");
+  // Project headline
+  const projectHeadline = custom.projectHeadline || invoice.project?.name || invoice.description || "Billing Software – Full Stack Web Application";
 
-  // Meta row 1: Quote No
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7);
-  doc.setTextColor(100, 116, 139);
-  doc.text("QUOTE NO.", metaCardX + 4, 19.5);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.setTextColor(15, 23, 42);
-  doc.text(invoice.invoiceNumber || "EXO-002", metaCardX + metaCardW - 4, 19.5, { align: "right" });
-
-  // Meta row 2: Date
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7);
-  doc.setTextColor(100, 116, 139);
-  doc.text("DATE", metaCardX + 4, 25);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.5);
-  doc.setTextColor(30, 41, 59);
-  doc.text(formatPDFDate(invoice.issueDate), metaCardX + metaCardW - 4, 25, { align: "right" });
-
-  // Meta row 3: Valid Until
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7);
-  doc.setTextColor(100, 116, 139);
-  doc.text("VALID UNTIL", metaCardX + 4, 30.5);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.5);
-  doc.setTextColor(30, 41, 59);
-  doc.text(formatPDFDate(invoice.dueDate), metaCardX + metaCardW - 4, 30.5, { align: "right" });
-
-  // Divider Line
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.4);
-  doc.line(margin, 39, rightMarginX, 39);
-
-  // Address Blocks: FROM / PREPARED FOR
-  const col1X = margin;
-  const col2X = margin + 92;
-
-  // FROM
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text("FROM", col1X, 45);
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text(compName, col1X, 50.5);
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(71, 85, 105);
-  doc.text(address, col1X, 55.5);
-  doc.text(phone, col1X, 60.5);
-  doc.text(officialEmail, col1X, 65.5);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(37, 99, 235);
-  doc.text(website, col1X, 70.5);
-
-  // PREPARED FOR
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text("PREPARED FOR", col2X, 45);
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text(invoice.client.company || invoice.client.name, col2X, 50.5);
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(71, 85, 105);
-  doc.text(`Attn: ${invoice.client.name}`, col2X, 55.5);
-
-  const clientAddress = invoice.client.address || "Client Address on Record";
-  const addressLines = doc.splitTextToSize(clientAddress, 85);
-  doc.text(addressLines, col2X, 60.5);
-
-  let clientMetaY = 60.5 + addressLines.length * 4.5;
-  doc.text(invoice.client.email, col2X, clientMetaY);
-  if (invoice.client.phone) {
-    clientMetaY += 4.5;
-    doc.text(invoice.client.phone, col2X, clientMetaY);
-  }
-
-  // Section 1: PROJECT BADGE
-  const projectSectionY = Math.max(77, clientMetaY + 6);
-  doc.setFillColor(37, 99, 235); // Electric Blue #2563EB
-  doc.roundedRect(margin, projectSectionY, 22, 5.5, 1, 1, "F");
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7);
-  doc.setTextColor(255, 255, 255);
-  doc.text("PROJECT", margin + 11, projectSectionY + 3.8, { align: "center" });
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9.5);
-  doc.setTextColor(15, 23, 42);
-  const projectName = invoice.project?.name || invoice.description || "Enterprise Technical Architecture & Delivery";
-  doc.text(projectName, margin + 26, projectSectionY + 4.2);
-
-  // Deliverables Phase Table Header
-  const tableY = projectSectionY + 8;
-  doc.setFillColor(241, 245, 249);
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(margin, tableY, contentWidth, 7, 1, 1, "FD");
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.setTextColor(71, 85, 105);
-  doc.text("#", margin + 5, tableY + 4.8);
-  doc.text("DESCRIPTION", margin + 20, tableY + 4.8);
-  doc.text("AMOUNT (INR)", rightMarginX - 4, tableY + 4.8, { align: "right" });
-
-  // Items Body
-  const items = invoice.items && invoice.items.length > 0
-    ? invoice.items
-    : [{ description: invoice.description || "Enterprise IT Deliverables & Architecture", quantity: 1, unitPrice: invoice.amount, amount: invoice.amount }];
-
-  let currentY = tableY + 7;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-
-  for (let i = 0; i < items.length; i++) {
-    const itm = items[i];
-    const phaseIndex = String(i + 1).padStart(2, "0");
-    const descLines = doc.splitTextToSize(itm.description, 135);
-    const rowHeight = Math.max(7, descLines.length * 4.5 + 3);
-
-    currentY += rowHeight;
-
-    if (i % 2 === 1) {
-      doc.setFillColor(248, 250, 252);
-      doc.rect(margin, currentY - rowHeight, contentWidth, rowHeight, "F");
+  // Helper for Top Banner (Header)
+  const drawCyberHeader = () => {
+    // Navy Tech Banner Background
+    try {
+      doc.addImage(CYBER_HEADER_BG, "JPEG", 0, 0, pageWidth, 42);
+    } catch {
+      doc.setFillColor(11, 17, 32);
+      doc.rect(0, 0, pageWidth, 42, "F");
     }
 
-    // Numbering in Electric Blue
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(37, 99, 235);
-    doc.text(`# ${phaseIndex}`, margin + 5, currentY - rowHeight + 4.6);
+    // Dynamic Org Logo in banner if uploaded
+    if (org?.logoUrl && typeof org.logoUrl === "string" && org.logoUrl.startsWith("data:image/")) {
+      try {
+        const format = org.logoUrl.includes("png") ? "PNG" : "JPEG";
+        doc.addImage(org.logoUrl, format, margin, 12, 18, 18);
+      } catch {}
+    }
 
-    // Description
+    // Cyan circuit accent line beneath banner
+    doc.setFillColor(0, 229, 255); // #00E5FF
+    doc.rect(0, 42, pageWidth, 2, "F");
+  };
+
+  // Helper for Dark Cyber Footer
+  const drawCyberFooter = (pageNo: number) => {
+    const footerY = 286;
+    doc.setFillColor(0, 229, 255);
+    doc.rect(0, footerY, pageWidth, 0.8, "F");
+
+    doc.setFillColor(11, 15, 23);
+    doc.rect(0, footerY + 0.8, pageWidth, pageHeight - footerY, "F");
+
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(15, 23, 42);
-    doc.text(descLines, margin + 20, currentY - rowHeight + 4.6);
+    doc.setFontSize(7.5);
+    doc.setTextColor(203, 213, 225);
+    const footerText = `${compName}  |  ${compWebsite}  |  ${compEmail}  |  ${compPhone.split(",")[0]}  |  Quote ${invoice.invoiceNumber || "EXO-002"}  |  Page ${pageNo} of 2`;
+    doc.text(footerText, pageWidth / 2, footerY + 6.5, { align: "center" });
+  };
 
-    // Amount
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(15, 23, 42);
-    doc.text(formatCurrencyINR(itm.amount), rightMarginX - 4, currentY - rowHeight + 4.6, { align: "right" });
+  // ==================== PAGE 1 ====================
+  drawCyberHeader();
 
-    // Row separator
-    doc.setDrawColor(241, 245, 249);
-    doc.line(margin, currentY, rightMarginX, currentY);
-  }
+  // 1. Badge Bar (y = 48mm)
+  const badgeY = 48;
+  const badgeH = 11;
+  const leftBadgeW = 95;
+  const rightBadgeW = contentWidth - leftBadgeW;
 
-  // Summary & Highlighted Total Block
-  let summaryY = currentY + 6;
-  const totalsLabelX = rightMarginX - 70;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(71, 85, 105);
-  doc.text("Subtotal:", totalsLabelX, summaryY);
+  // Left: Blue QUOTATION Badge
+  doc.setFillColor(47, 107, 255); // #2F6BFF
+  doc.rect(margin, badgeY, leftBadgeW, badgeH, "F");
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(15, 23, 42);
-  doc.text(formatCurrencyINR(invoice.amount), rightMarginX - 4, summaryY, { align: "right" });
+  doc.setFontSize(14);
+  doc.setTextColor(255, 255, 255);
+  doc.text("QUOTATION", margin + 6, badgeY + 7.5);
 
-  summaryY += 5;
+  // Right: Dark container with IT Services & Solutions
+  doc.setFillColor(17, 24, 39);
+  doc.rect(margin + leftBadgeW, badgeY, rightBadgeW, badgeH, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(255, 255, 255);
+  doc.text("IT Services & Solutions", rightMarginX - 5, badgeY + 4.8, { align: "right" });
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(71, 85, 105);
-  if (invoice.tax > 0) {
-    doc.text("GST (18%):", totalsLabelX, summaryY);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(15, 23, 42);
-    doc.text(formatCurrencyINR(invoice.tax), rightMarginX - 4, summaryY, { align: "right" });
-  } else {
-    doc.text("GST (0%):", totalsLabelX, summaryY);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(15, 23, 42);
-    doc.text("INR 0.00", rightMarginX - 4, summaryY, { align: "right" });
+  doc.setFontSize(7.5);
+  doc.setTextColor(0, 229, 255);
+  doc.text("Custom Future Products", rightMarginX - 5, badgeY + 9, { align: "right" });
+
+  // 2. Three Metadata Cards (y = 62mm)
+  const cardY = 62;
+  const cardW = (contentWidth - 6) / 3;
+  const cardH = 12;
+
+  // Card 1: QUOTE NO.
+  doc.setFillColor(244, 247, 252);
+  doc.rect(margin, cardY, cardW, cardH, "F");
+  doc.setFillColor(47, 107, 255); // Blue accent
+  doc.rect(margin, cardY, 1.8, cardH, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(6.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text("QUOTE NO.", margin + 4.5, cardY + 4.2);
+  doc.setFontSize(8.5);
+  doc.setTextColor(17, 24, 39);
+  doc.text(invoice.invoiceNumber || "EXO-002", margin + 4.5, cardY + 9);
+
+  // Card 2: DATE
+  const card2X = margin + cardW + 3;
+  doc.setFillColor(244, 247, 252);
+  doc.rect(card2X, cardY, cardW, cardH, "F");
+  doc.setFillColor(0, 194, 178); // Cyan accent
+  doc.rect(card2X, cardY, 1.8, cardH, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(6.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text("DATE", card2X + 4.5, cardY + 4.2);
+  doc.setFontSize(8);
+  doc.setTextColor(17, 24, 39);
+  doc.text(formatPDFDate(invoice.issueDate), card2X + 4.5, cardY + 9);
+
+  // Card 3: VALID UNTIL
+  const card3X = card2X + cardW + 3;
+  doc.setFillColor(244, 247, 252);
+  doc.rect(card3X, cardY, cardW, cardH, "F");
+  doc.setFillColor(255, 138, 61); // Orange accent
+  doc.rect(card3X, cardY, 1.8, cardH, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(6.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text("VALID UNTIL", card3X + 4.5, cardY + 4.2);
+  doc.setFontSize(8);
+  doc.setTextColor(17, 24, 39);
+  doc.text(formatPDFDate(invoice.dueDate), card3X + 4.5, cardY + 9);
+
+  // 3. Two Address Cards: FROM / PREPARED FOR (y = 77mm)
+  const addrY = 77;
+  const addrW = (contentWidth - 6) / 2;
+  const addrH = 26;
+
+  // Box 1: FROM
+  doc.setDrawColor(226, 232, 240);
+  doc.setFillColor(255, 255, 255);
+  doc.rect(margin, addrY, addrW, addrH, "FD");
+  doc.setFillColor(47, 107, 255); // Blue top bar
+  doc.rect(margin, addrY, addrW, 1.5, "F");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(47, 107, 255);
+  doc.text("F R O M", margin + 4, addrY + 5.5);
+
+  doc.setFontSize(8.5);
+  doc.setTextColor(17, 24, 39);
+  doc.text(compName, margin + 4, addrY + 10);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(75, 85, 99);
+  doc.text(compAddress, margin + 4, addrY + 14.5);
+  doc.text(compPhone, margin + 4, addrY + 18.5);
+  doc.text(`${compEmail}  |  ${compWebsite}`, margin + 4, addrY + 22.5);
+
+  // Box 2: PREPARED FOR
+  const addr2X = margin + addrW + 6;
+  doc.rect(addr2X, addrY, addrW, addrH, "FD");
+  doc.setFillColor(0, 194, 178); // Cyan top bar
+  doc.rect(addr2X, addrY, addrW, 1.5, "F");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(0, 194, 178);
+  doc.text("P R E P A R E D   F O R", addr2X + 4, addrY + 5.5);
+
+  doc.setFontSize(8.5);
+  doc.setTextColor(17, 24, 39);
+  doc.text(clientComp, addr2X + 4, addrY + 10);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(75, 85, 99);
+  doc.text(clientAddr, addr2X + 4, addrY + 14.5);
+
+  // 4. PROJECT Section Icon & Title (y = 106mm)
+  const projSecY = 106;
+  try {
+    doc.addImage(ICON_PROJECT, "PNG", margin, projSecY - 3, 5, 5);
+  } catch {
+    doc.setFillColor(47, 107, 255);
+    doc.circle(margin + 2.5, projSecY - 0.5, 2.5, "F");
   }
 
-  // Highlighted Total Box
-  summaryY += 4;
-  const totalBoxW = 72;
-  const totalBoxH = 9.5;
-  const totalBoxX = rightMarginX - totalBoxW;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(17, 24, 39);
+  doc.text("PROJECT", margin + 7, projSecY);
 
-  doc.setFillColor(15, 23, 42); // slate-900 Midnight Navy
-  doc.roundedRect(totalBoxX, summaryY, totalBoxW, totalBoxH, 1.2, 1.2, "F");
+  // Divider hairline
+  doc.setDrawColor(226, 232, 240);
+  doc.line(margin, projSecY + 2.5, rightMarginX, projSecY + 2.5);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.text(projectHeadline, margin, projSecY + 7);
+
+  // 5. Phase Deliverables Table (# | Description | Amount) (y = 116mm)
+  const tableY = projSecY + 10;
+  doc.setFillColor(47, 107, 255); // Solid Blue
+  doc.rect(margin, tableY, contentWidth, 6.5, "F");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  doc.setTextColor(255, 255, 255);
+  doc.text("#", margin + 5, tableY + 4.5, { align: "center" });
+  doc.text("Description", margin + 15, tableY + 4.5);
+  doc.text("Amount", rightMarginX - 4, tableY + 4.5, { align: "right" });
+
+  const items = invoice.items && invoice.items.length > 0
+    ? invoice.items
+    : [{ description: invoice.description || "Software Engineering & Architecture Deliverables", quantity: 1, unitPrice: invoice.amount, amount: invoice.amount }];
+
+  let currentY = tableY + 6.5;
+  const maxPage1Items = 16;
+  const displayItems = items.slice(0, maxPage1Items);
+
+  for (let i = 0; i < displayItems.length; i++) {
+    const itm = displayItems[i];
+    const rowH = 6.2;
+    currentY += rowH;
+
+    // Alternating zebra row
+    if (i % 2 === 1) {
+      doc.setFillColor(240, 246, 255); // Ice blue
+      doc.rect(margin, currentY - rowH, contentWidth, rowH, "F");
+    }
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(17, 24, 39);
+    doc.text(String(i + 1), margin + 5, currentY - 1.8, { align: "center" });
+
+    const descText = itm.description.length > 70 ? itm.description.substring(0, 68) + "..." : itm.description;
+    doc.text(descText, margin + 15, currentY - 1.8);
+
+    doc.setFont("helvetica", "bold");
+    doc.text(formatAmountINR(itm.amount), rightMarginX - 4, currentY - 1.8, { align: "right" });
+  }
+
+  // Highlighted TOTAL Pill (Right Aligned, y = 246mm)
+  const totalPillY = Math.max(currentY + 6, 242);
+  const pillW = 76;
+  const pillH = 9;
+  const pillX = rightMarginX - pillW;
+
+  doc.setFillColor(17, 24, 39); // Deep dark pill
+  doc.rect(pillX, totalPillY, pillW, pillH, "F");
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
   doc.setTextColor(255, 255, 255);
-  doc.text("TOTAL:", totalBoxX + 4, summaryY + 6.2);
-  doc.setFontSize(10.5);
-  doc.text(formatCurrencyINR(invoice.totalAmount), rightMarginX - 4, summaryY + 6.2, { align: "right" });
+  doc.text("TOTAL", pillX + 6, totalPillY + 5.8);
 
-  // Section 2: TERMS BADGE
-  const termsSectionY = Math.max(summaryY + 16, 178);
-  doc.setFillColor(37, 99, 235); // Electric Blue
-  doc.roundedRect(margin, termsSectionY, 18, 5, 1, 1, "F");
+  doc.setFontSize(10.5);
+  doc.setTextColor(0, 229, 255); // Bright cyan
+  doc.text(formatAmountINR(invoice.totalAmount), rightMarginX - 4, totalPillY + 6.2, { align: "right" });
+
+  drawCyberFooter(1);
+
+  // ==================== PAGE 2 ====================
+  doc.addPage("a4", "portrait");
+  drawCyberHeader();
+
+  // 1. TERMS Section (y = 52mm)
+  const termsSecY = 52;
+  try {
+    doc.addImage(ICON_TERMS, "PNG", margin, termsSecY - 3, 5, 5);
+  } catch {
+    doc.setFillColor(47, 107, 255);
+    doc.circle(margin + 2.5, termsSecY - 0.5, 2.5, "F");
+  }
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(17, 24, 39);
+  doc.text("TERMS", margin + 7, termsSecY);
+
+  // Divider hairline
+  doc.setDrawColor(226, 232, 240);
+  doc.line(margin, termsSecY + 2.5, rightMarginX, termsSecY + 2.5);
+
+  const defaultCyberTerms = [
+    "Valid for 30 days from the date of issue.",
+    "Payment: 50% advance, balance on delivery; invoices payable within 15 days.",
+    "Third-party licences and hosting are excluded; scope changes will be quoted separately."
+  ];
+
+  const page2Terms = custom.terms && custom.terms.length > 0 ? custom.terms : defaultCyberTerms;
+  let termBulletY = termsSecY + 8;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(55, 65, 81);
+
+  page2Terms.forEach((t) => {
+    // Blue/Cyan square bullet
+    doc.setFillColor(47, 107, 255);
+    doc.rect(margin + 1, termBulletY - 2.5, 1.6, 1.6, "F");
+
+    const cleanBullet = t.replace(/^\d+\.\s*/, "").replace(/^▪\s*/, "");
+    doc.text(cleanBullet, margin + 5, termBulletY);
+    termBulletY += 5.5;
+  });
+
+  // 2. ACCEPTANCE Section (y = 82mm)
+  const acceptSecY = Math.max(termBulletY + 8, 82);
+  try {
+    doc.addImage(ICON_ACCEPTANCE, "PNG", margin, acceptSecY - 3, 5, 5);
+  } catch {
+    doc.setFillColor(0, 194, 178);
+    doc.circle(margin + 2.5, acceptSecY - 0.5, 2.5, "F");
+  }
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(17, 24, 39);
+  doc.text("ACCEPTANCE", margin + 7, acceptSecY);
+
+  doc.setDrawColor(226, 232, 240);
+  doc.line(margin, acceptSecY + 2.5, rightMarginX, acceptSecY + 2.5);
+
+  // Dual Signoff Containers (y = 94mm)
+  const signBoxY = acceptSecY + 6;
+  const signBoxW = (contentWidth - 6) / 2;
+
+  // Box 1: FOR EXOCROSS
+  doc.setFillColor(47, 107, 255); // Blue top accent line
+  doc.rect(margin, signBoxY, signBoxW, 1.5, "F");
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7);
-  doc.setTextColor(255, 255, 255);
-  doc.text("TERMS", margin + 9, termsSectionY + 3.6, { align: "center" });
+  doc.setTextColor(47, 107, 255);
+  doc.text(`F O R   ${compName.toUpperCase()}`, margin + 2, signBoxY + 5.5);
+
+  // Signature line
+  const signLineY = signBoxY + 36;
+  doc.setDrawColor(17, 24, 39);
+  doc.setLineWidth(0.4);
+  doc.line(margin, signLineY, margin + signBoxW, signLineY);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
-  doc.setTextColor(71, 85, 105);
-  const terms = [
-    "1. 50% advance on project kickoff, balance 50% upon final acceptance & deployment.",
-    "2. Quote remains valid for 30 calendar days from the date of issuance.",
-    "3. Additional features or scope modifications will be billed separately under mutual agreement."
-  ];
+  doc.setTextColor(75, 85, 99);
+  doc.text("Authorised signatory, name & date", margin, signLineY + 4.5);
 
-  let termItemY = termsSectionY + 7;
-  terms.forEach(t => {
-    doc.text(t, margin, termItemY);
-    termItemY += 4.2;
-  });
-
-  // Section 3: ACCEPTANCE BADGE
-  const acceptSectionY = termItemY + 3;
-  doc.setFillColor(2, 132, 199); // Sky / Cyan #0284C7
-  doc.roundedRect(margin, acceptSectionY, 28, 5, 1, 1, "F");
+  // Box 2: ACCEPTED BY CLIENT
+  const signBox2X = margin + signBoxW + 6;
+  doc.setFillColor(0, 194, 178); // Cyan top accent line
+  doc.rect(signBox2X, signBoxY, signBoxW, 1.5, "F");
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7);
-  doc.setTextColor(255, 255, 255);
-  doc.text("ACCEPTANCE", margin + 14, acceptSectionY + 3.6, { align: "center" });
+  doc.setTextColor(0, 194, 178);
+  doc.text("A C C E P T E D   B Y   C L I E N T", signBox2X + 2, signBoxY + 5.5);
 
-  // Dual Boxed Signatory Stamps
-  const stampBoxY = acceptSectionY + 7.5;
-  const stampBoxW = 86;
-  const stampBoxH = 31;
-
-  // Box 1 (Left - Exocross):
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(203, 213, 225);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(margin, stampBoxY, stampBoxW, stampBoxH, 1.5, 1.5, "FD");
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.setTextColor(15, 23, 42);
-  doc.text("For Exocross", margin + 4, stampBoxY + 5.5);
-
-  // Digital verification stamp badge
-  doc.setFillColor(236, 253, 245);
-  doc.setDrawColor(167, 243, 208);
-  doc.roundedRect(margin + 4, stampBoxY + 8, 54, 5, 1, 1, "FD");
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(6.5);
-  doc.setTextColor(5, 150, 105);
-  doc.text("AUTHENTICATED & ISSUED", margin + 31, stampBoxY + 11.5, { align: "center" });
+  // Signature line
+  doc.setDrawColor(17, 24, 39);
+  doc.line(signBox2X, signLineY, signBox2X + signBoxW, signLineY);
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  doc.setTextColor(100, 116, 139);
-  doc.text("Authorised Signatory", margin + 4, stampBoxY + 20);
-  doc.text(`Date: ${formatPDFDate(invoice.issueDate)}`, margin + 4, stampBoxY + 25.5);
+  doc.setFontSize(7.5);
+  doc.setTextColor(75, 85, 99);
+  doc.text("Client signatory, name, date & seal", signBox2X, signLineY + 4.5);
 
-  // Box 2 (Right - Client Acceptance):
-  const rightBoxX = rightMarginX - stampBoxW;
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(203, 213, 225);
-  doc.roundedRect(rightBoxX, stampBoxY, stampBoxW, stampBoxH, 1.5, 1.5, "FD");
+  drawCyberFooter(2);
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.setTextColor(15, 23, 42);
-  doc.text("Client Acceptance", rightBoxX + 4, stampBoxY + 5.5);
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  doc.setTextColor(100, 116, 139);
-  doc.text("Signature / Name: _______________________", rightBoxX + 4, stampBoxY + 12);
-  doc.text("Designation: ___________________________", rightBoxX + 4, stampBoxY + 18);
-  doc.text("Date: __________________________________", rightBoxX + 4, stampBoxY + 24);
-
-  // Modern Footer
-  const footerY = 282;
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.4);
-  doc.line(margin, footerY, rightMarginX, footerY);
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  doc.setTextColor(148, 163, 184);
-  doc.text(
-    `${compName}  •  Innovative IT Solutions & Custom Future Products  •  ${website}`,
-    pageWidth / 2,
-    footerY + 4.5,
-    { align: "center" }
-  );
-
-  doc.save(`EXOCROSS_Modern_Quote_${invoice.invoiceNumber}.pdf`);
+  doc.save(`Cyber_Quotation_${invoice.invoiceNumber || "EXO-002"}.pdf`);
 }
 
 /**
  * Main Invoice PDF Dispatcher
- * Allows selecting either modern tech template or corporate classic template.
  */
 export function downloadInvoicePDF(
   invoice: InvoicePDFData,
@@ -1283,5 +1358,3 @@ export function downloadInvoicePDF(
     generateModernTechPDF(invoice, org);
   }
 }
-
-

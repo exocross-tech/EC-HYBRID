@@ -44,6 +44,10 @@ export async function PUT(
     const body = await req.json();
     const updateData: any = {};
 
+    if (body.invoiceNumber !== undefined) updateData.invoiceNumber = body.invoiceNumber;
+    if (body.issueDate !== undefined) updateData.issueDate = new Date(body.issueDate);
+    if (body.clientId !== undefined) updateData.clientId = body.clientId;
+    if (body.projectId !== undefined) updateData.projectId = body.projectId || null;
     if (body.status !== undefined) updateData.status = body.status;
     if (body.status === "PAID" && !body.paymentDate) {
       updateData.paymentDate = new Date();

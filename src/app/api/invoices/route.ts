@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { clientId, projectId, description, items, amount, tax, totalAmount, dueDate, invoiceNumber } = body;
+    const { clientId, projectId, description, items, amount, tax, totalAmount, dueDate, issueDate, invoiceNumber } = body;
 
     if (!clientId) {
       return NextResponse.json({ error: "Client is required" }, { status: 400 });
@@ -109,6 +109,7 @@ export async function POST(req: NextRequest) {
         amount: subtotal,
         tax: computedTax,
         totalAmount: computedTotal,
+        issueDate: issueDate ? new Date(issueDate) : new Date(),
         dueDate: dueDate ? new Date(dueDate) : new Date(Date.now() + 15 * 86400000),
         status: "SENT",
         items: typeof items === "string" ? items : JSON.stringify(items || []),

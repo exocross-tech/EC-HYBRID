@@ -4,7 +4,7 @@ import React from "react";
 import { useAuth } from "@/context/AuthContext";
 import { RoleBadge } from "./RoleBadge";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
-import { Activity, ShieldCheck, Menu } from "lucide-react";
+import { Activity, ShieldCheck, Menu, LogOut } from "lucide-react";
 
 export function Navbar({
   title,
@@ -15,8 +15,7 @@ export function Navbar({
   subtitle?: string;
   onOpenMobileMenu?: () => void;
 }) {
-  const { user } = useAuth();
-  const { isConnected } = useRealtimeSync();
+  const { user, logout } = useAuth();
 
   if (!user) return null;
 
@@ -27,7 +26,7 @@ export function Navbar({
           <button
             type="button"
             onClick={onOpenMobileMenu}
-            className="lg:hidden p-1.5 -ml-1 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors shrink-0"
+            className="lg:hidden p-1.5 -ml-1 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors shrink-0 cursor-pointer"
             aria-label="Open navigation menu"
           >
             <Menu className="w-5 h-5" />
@@ -46,32 +45,6 @@ export function Navbar({
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-        {/* Real-Time Live Sync Status Indicator (100% Free Native SSE) */}
-        <div
-          className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all ${
-            isConnected
-              ? "bg-emerald-50 text-emerald-700 border-emerald-200 shadow-xs"
-              : "bg-amber-50 text-amber-700 border-amber-200"
-          }`}
-          title={isConnected ? "Real-time SSE event stream connected" : "Connecting to real-time sync stream..."}
-        >
-          <span className="relative flex h-2 w-2">
-            {isConnected && (
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-            )}
-            <span
-              className={`relative inline-flex rounded-full h-2 w-2 ${
-                isConnected ? "bg-emerald-500" : "bg-amber-500"
-              }`}
-            />
-          </span>
-          <span className="hidden md:inline font-medium">
-            {isConnected ? "Live Sync Active" : "Connecting..."}
-          </span>
-        </div>
-
-        <div className="h-5 w-[1px] bg-slate-200 hidden xs:block" />
-
         {/* Authenticated User Role Badge */}
         <RoleBadge role={user.role} />
 
@@ -89,6 +62,16 @@ export function Navbar({
             </p>
           </div>
         </div>
+
+        {/* Sign Out Button */}
+        <button
+          onClick={logout}
+          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+          title="Sign out"
+          aria-label="Sign out"
+        >
+          <LogOut className="w-4 h-4" />
+        </button>
       </div>
     </header>
   );
