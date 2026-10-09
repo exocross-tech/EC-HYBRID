@@ -779,58 +779,202 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* ROW 3: REAL-TIME AUDIT TRAIL (FULL-WIDTH SYMMETRICAL CARD) */}
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 md:p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200">
-                      <Activity className="w-5 h-5 text-indigo-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-sm text-slate-900">Real-Time System Audit Trail</h3>
-                      <p className="text-[11px] text-slate-500">Live operational telemetry of administrative, client, and security events</p>
-                    </div>
-                  </div>
-                  <span className="inline-flex items-center gap-1.5 text-[10px] bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-bold border border-slate-200">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>Live Event Stream</span>
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {stats?.recentActivities && stats.recentActivities.length > 0 ? (
-                    stats.recentActivities.map((log: any) => (
-                      <div
-                        key={log.id}
-                        className="p-3 rounded-xl border border-slate-100 bg-slate-50/60 hover:bg-white hover:border-slate-200 transition-all text-xs flex flex-col justify-between"
-                      >
-                        <div>
-                          <div className="flex items-center justify-between text-[11px] mb-1.5">
-                            <span className="font-bold text-slate-900">{log.user?.name || "System Event"}</span>
-                            <span className="text-[10px] font-mono text-slate-400">
-                              {new Date(log.createdAt).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-slate-600 leading-relaxed line-clamp-2">
-                            {log.details || log.action}
-                          </p>
+              {/* ROW 3: LEAD SOURCE CHANNELS & REAL-TIME AUDIT TRAIL (2-COLUMN SYMMETRICAL GRID) */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+                {/* 5. CLIENT LEAD SOURCES (CIRCULAR SVG DONUT & CHANNELS MATRIX) */}
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 md:p-6 flex flex-col justify-between h-full">
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-2.5 rounded-xl bg-sky-50 text-sky-600 border border-sky-100">
+                          <PieChart className="w-5 h-5" />
                         </div>
-                        <div className="mt-2.5 pt-2 border-t border-slate-200/50 flex items-center justify-between text-[10px]">
-                          <span className="font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-1.5 py-0.2 rounded">
-                            {log.action}
-                          </span>
-                          <span className="text-slate-400">
-                            {formatDate(log.createdAt)}
-                          </span>
+                        <div>
+                          <h3 className="font-bold text-sm text-slate-900">Client Lead Sources & Acquisition</h3>
+                          <p className="text-[11px] text-slate-500">Inbound channel origin distribution of client accounts</p>
                         </div>
                       </div>
-                    ))
-                  ) : (
-                    <p className="col-span-3 text-center text-xs text-slate-400 py-6">No recent audit log entries.</p>
-                  )}
+                      <Link
+                        href="/clients"
+                        className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors"
+                      >
+                        <span>View Clients</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </Link>
+                    </div>
+
+                    {/* Donut Chart & Sources List */}
+                    {(() => {
+                      const sources = stats?.leadSources || [];
+                      const totalCount = sources.reduce((sum: number, it: any) => sum + it.count, 0);
+                      const SOURCE_COLORS = [
+                        "#0EA5E9", // Sky
+                        "#8B5CF6", // Purple
+                        "#10B981", // Emerald
+                        "#F59E0B", // Amber
+                        "#EC4899", // Pink
+                        "#6366F1", // Indigo
+                        "#14B8A6", // Teal
+                        "#F97316", // Orange
+                      ];
+
+                      const radius = 64;
+                      const circumference = 2 * Math.PI * radius;
+                      let accumulatedOffset = 0;
+
+                      return (
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-5 items-center">
+                          {/* SVG Donut */}
+                          <div className="sm:col-span-5 flex justify-center relative">
+                            <svg className="w-40 h-40 transform -rotate-90" viewBox="0 0 160 160">
+                              <circle
+                                cx="80"
+                                cy="80"
+                                r={radius}
+                                className="stroke-slate-100"
+                                strokeWidth="18"
+                                fill="transparent"
+                              />
+                              {sources.map((item: any, idx: number) => {
+                                const pct = totalCount > 0 ? item.count / totalCount : 0;
+                                const strokeLength = pct * circumference;
+                                const strokeDasharray = `${strokeLength} ${circumference - strokeLength}`;
+                                const strokeDashoffset = -accumulatedOffset;
+                                accumulatedOffset += strokeLength;
+
+                                return (
+                                  <circle
+                                    key={item.source}
+                                    cx="80"
+                                    cy="80"
+                                    r={radius}
+                                    stroke={SOURCE_COLORS[idx % SOURCE_COLORS.length]}
+                                    strokeWidth="18"
+                                    fill="transparent"
+                                    strokeDasharray={strokeDasharray}
+                                    strokeDashoffset={strokeDashoffset}
+                                    className="transition-all duration-500"
+                                  />
+                                );
+                              })}
+                            </svg>
+                            {/* Center Donut Hole Text */}
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                              <span className="text-xl font-black text-slate-900 leading-none">
+                                {totalCount}
+                              </span>
+                              <span className="text-[10px] uppercase font-bold text-slate-400 mt-1">
+                                Total Leads
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Sources Breakdown List */}
+                          <div className="sm:col-span-7 space-y-2">
+                            {sources.length > 0 ? (
+                              sources.slice(0, 5).map((item: any, idx: number) => (
+                                <div
+                                  key={item.source}
+                                  className="p-2 rounded-xl border border-slate-100 bg-slate-50/60 hover:bg-white hover:border-slate-200 transition-all flex items-center justify-between text-xs"
+                                >
+                                  <div className="flex items-center gap-2 min-w-0 pr-2">
+                                    <span
+                                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                                      style={{ backgroundColor: SOURCE_COLORS[idx % SOURCE_COLORS.length] }}
+                                    />
+                                    <span className="font-bold text-slate-800 truncate" title={item.source}>
+                                      {item.source}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center gap-2.5 shrink-0 text-right">
+                                    <span className="font-semibold text-slate-600">{item.count} leads</span>
+                                    <span
+                                      className="text-[10px] font-bold px-1.5 py-0.5 rounded text-white"
+                                      style={{ backgroundColor: SOURCE_COLORS[idx % SOURCE_COLORS.length] }}
+                                    >
+                                      {item.percentage}%
+                                    </span>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-center text-xs text-slate-400 py-4">No client lead sources recorded yet.</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Footer */}
+                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                    <span>Ranked by inbound client conversion volume</span>
+                    <span className="font-semibold text-slate-700">{stats?.leadSources?.length || 0} Acquisition Channels</span>
+                  </div>
+                </div>
+
+                {/* 6. REAL-TIME AUDIT TRAIL (RIGHT-SIDE CARD) */}
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 md:p-6 flex flex-col justify-between h-full">
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-2.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200">
+                          <Activity className="w-5 h-5 text-indigo-600" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-sm text-slate-900">Real-Time System Audit Trail</h3>
+                          <p className="text-[11px] text-slate-500">Live operational telemetry of administrative and security events</p>
+                        </div>
+                      </div>
+                      <span className="inline-flex items-center gap-1.5 text-[10px] bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-bold border border-slate-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>Live Stream</span>
+                      </span>
+                    </div>
+
+                    <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
+                      {stats?.recentActivities && stats.recentActivities.length > 0 ? (
+                        stats.recentActivities.map((log: any) => (
+                          <div
+                            key={log.id}
+                            className="p-3 rounded-xl border border-slate-100 bg-slate-50/60 hover:bg-white hover:border-slate-200 transition-all text-xs flex flex-col justify-between"
+                          >
+                            <div>
+                              <div className="flex items-center justify-between text-[11px] mb-1">
+                                <span className="font-bold text-slate-900">{log.user?.name || "System Event"}</span>
+                                <span className="text-[10px] font-mono text-slate-400">
+                                  {new Date(log.createdAt).toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-600 leading-relaxed line-clamp-2">
+                                {log.details || log.action}
+                              </p>
+                            </div>
+                            <div className="mt-2 pt-1.5 border-t border-slate-200/50 flex items-center justify-between text-[10px]">
+                              <span className="font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-1.5 py-0.2 rounded">
+                                {log.action}
+                              </span>
+                              <span className="text-slate-400">
+                                {formatDate(log.createdAt)}
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-center text-xs text-slate-400 py-6">No recent audit log entries.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                    <span>Audit ledger of administrative events</span>
+                    <span className="font-semibold text-slate-700">{stats?.recentActivities?.length || 0} Recent Logs</span>
+                  </div>
                 </div>
               </div>
             </>

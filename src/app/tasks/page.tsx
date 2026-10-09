@@ -335,6 +335,15 @@ export default function TasksPage() {
     { id: "DONE", title: "Completed", color: "border-emerald-400" },
   ];
 
+  const myDirectTasks = tasks
+    .filter(
+      (t) =>
+        (t.assignedToId === user?.id ||
+          t.assignees?.some((a) => a.id === user?.id)) &&
+        t.status !== "DONE"
+    )
+    .slice(0, 4);
+
   return (
     <AppLayout
       title={isEmployee ? "My Daily Planner & Assigned Tasks" : "Tasks & Work Planner"}
@@ -475,6 +484,96 @@ export default function TasksPage() {
           </button>
         )}
       </div>
+
+      {/* My Direct Action Items / Assigned Tasks Queue (3-4 Cards) */}
+      {!loading && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-4 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center shrink-0">
+                <CheckSquare className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="font-bold text-xs sm:text-sm text-slate-900 flex items-center gap-2">
+                  <span>My Assigned Tasks & Action Items</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-bold border border-indigo-200">
+                    {myDirectTasks.length} Pending
+                  </span>
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  {isAdmin
+                    ? "Executive focus queue: action items and deliverables assigned directly to you"
+                    : "Your assigned sprint deliverables and priorities"}
+                </p>
+              </div>
+            </div>
+            {myDirectTasks.length > 0 && (
+              <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">
+                Top Priority Focus
+              </span>
+            )}
+          </div>
+
+          {myDirectTasks.length === 0 ? (
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 text-xs flex items-center gap-2.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>No pending tasks directly assigned to your account right now. You are all caught up!</span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {myDirectTasks.map((t) => (
+                <div
+                  key={t.id}
+                  onClick={() => handleOpenEdit(t)}
+                  className="bg-slate-50/80 hover:bg-white border border-slate-200 hover:border-indigo-400 rounded-xl p-3.5 cursor-pointer transition-all flex flex-col justify-between group shadow-xs hover:shadow-md"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-1 mb-2">
+                      <span className="text-[10px] font-bold text-indigo-600 truncate max-w-[120px] bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">
+                        {t.project?.name || "General"}
+                      </span>
+                      <span
+                        className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${
+                          t.priority === "URGENT"
+                            ? "bg-rose-50 text-rose-700 border border-rose-200"
+                            : t.priority === "HIGH"
+                            ? "bg-orange-50 text-orange-700 border border-orange-200"
+                            : t.priority === "MEDIUM"
+                            ? "bg-blue-50 text-blue-700 border border-blue-200"
+                            : "bg-slate-100 text-slate-600 border border-slate-200"
+                        }`}
+                      >
+                        {t.priority}
+                      </span>
+                    </div>
+                    <h4 className="font-semibold text-xs text-slate-900 line-clamp-2 group-hover:text-indigo-600 transition-colors">
+                      {t.title}
+                    </h4>
+                  </div>
+
+                  <div className="pt-2.5 mt-3 border-t border-slate-200/70 flex items-center justify-between text-[11px]">
+                    <span className="flex items-center gap-1 text-[10px] text-slate-500">
+                      <Clock className="w-3 h-3 text-slate-400" />
+                      {t.dueDate ? formatDate(t.dueDate) : "No due date"}
+                    </span>
+                    <span
+                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                        t.status === "TODO"
+                          ? "bg-slate-100 text-slate-700 border-slate-200"
+                          : t.status === "IN_PROGRESS"
+                          ? "bg-blue-50 text-blue-700 border-blue-200"
+                          : "bg-amber-50 text-amber-700 border-amber-200"
+                      }`}
+                    >
+                      {t.status.replace("_", " ")}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Loading state */}
       {loading ? (

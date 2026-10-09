@@ -138,12 +138,29 @@ export async function GET() {
         total: totalTodayTasks,
       };
 
+      // 5. Lead Source Distribution Breakdown
+      const leadSourceMap: Record<string, number> = {};
+      let totalClientsWithSource = 0;
+      clientsWithServices.forEach((c) => {
+        const source = (c.leadSource && c.leadSource.trim().length > 0) ? c.leadSource.trim() : "Direct / Inbound";
+        leadSourceMap[source] = (leadSourceMap[source] || 0) + 1;
+        totalClientsWithSource++;
+      });
+      const leadSources = Object.entries(leadSourceMap)
+        .map(([source, count]) => ({
+          source,
+          count,
+          percentage: totalClientsWithSource > 0 ? Math.round((count / totalClientsWithSource) * 100) : 0,
+        }))
+        .sort((a, b) => b.count - a.count);
+
       return NextResponse.json({
         role: "ADMIN",
         workforce,
         projectsGraphData,
         clientServiceShare,
         todayTasksData,
+        leadSources,
         recentActivities,
       });
     }

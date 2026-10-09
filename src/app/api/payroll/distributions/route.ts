@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 
-// GET /api/payroll/distributions - Founders and Admins
+// GET /api/payroll/distributions - Founders and Admins Only
 export async function GET(req: NextRequest) {
-  const { error, status, user } = await requireAuth(["ADMIN", "HR", "MANAGER"]);
+  const { error, status, user } = await requireAuth(["ADMIN"]);
   if (error || !user) {
-    return NextResponse.json({ error: error || "Unauthorized access" }, { status: status || 403 });
+    return NextResponse.json({ error: error || "Unauthorized: Founder profit distributions are restricted to Admin role" }, { status: status || 403 });
   }
 
   try {

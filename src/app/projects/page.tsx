@@ -522,7 +522,11 @@ export default function ProjectsPage() {
 
                       {/* Financial Valuation & Allocation */}
                       <td className="py-3.5 px-4">
-                        {proj.type === "PRODUCT" ? (
+                        {proj.budget <= 0 ? (
+                          <div>
+                            <p className="font-semibold text-slate-500">{formatINR(0)}</p>
+                          </div>
+                        ) : proj.type === "PRODUCT" ? (
                           <div>
                             <p className="font-bold text-amber-700 flex items-center gap-1">
                               {formatINR(proj.budget)}
@@ -530,10 +534,6 @@ export default function ProjectsPage() {
                                 Expense
                               </span>
                             </p>
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50/80 border border-amber-200 px-1.5 py-0.5 rounded mt-0.5">
-                              <Flame className="w-3 h-3 text-amber-500" />
-                              R&D Capital Outlay (Self-Funded)
-                            </span>
                           </div>
                         ) : (
                           <div>

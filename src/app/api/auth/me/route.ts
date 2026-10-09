@@ -19,6 +19,7 @@ export async function GET() {
       designation: true,
       department: true,
       status: true,
+      avatarUrl: true,
       dateJoined: true,
     },
   });

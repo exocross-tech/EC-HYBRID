@@ -20,6 +20,7 @@ import {
   Eye,
   Info,
   Loader2,
+  Edit2,
 } from "lucide-react";
 import { formatDate } from "@/lib/formatDate";
 
@@ -31,6 +32,7 @@ interface CalendarEvent {
   endDate: string;
   eventType: "MEETING" | "DEADLINE" | "LEAVE" | "PROJECT_MILESTONE";
   attendees?: string;
+  projectId?: string;
   project?: {
     id: string;
     name: string;
@@ -66,8 +68,19 @@ export default function CalendarPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [dayEventsModal, setDayEventsModal] = useState<{ date: string; events: CalendarEvent[] } | null>(null);
+  const [isEditingSelectedEvent, setIsEditingSelectedEvent] = useState(false);
 
   const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    startDate: "",
+    endDate: "",
+    eventType: "MEETING",
+    projectId: "",
+    attendees: "",
+  });
+
+  const [editEventData, setEditEventData] = useState({
     title: "",
     description: "",
     startDate: "",
@@ -216,6 +229,63 @@ export default function CalendarPage() {
       }
     } catch (err: any) {
       setActionError(err.message || "Network error");
+    }
+  };
+
+  const formatForDateTimeLocal = (dateStr: string) => {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const year = d.getFullYear();
+    const month = pad(d.getMonth() + 1);
+    const day = pad(d.getDate());
+    const hours = pad(d.getHours());
+    const minutes = pad(d.getMinutes());
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
+  const handleStartEdit = () => {
+    if (!selectedEvent) return;
+    setEditEventData({
+      title: selectedEvent.title,
+      description: selectedEvent.description || "",
+      eventType: selectedEvent.eventType,
+      projectId: selectedEvent.projectId || selectedEvent.project?.id || "",
+      startDate: formatForDateTimeLocal(selectedEvent.startDate),
+      endDate: formatForDateTimeLocal(selectedEvent.endDate),
+      attendees: selectedEvent.attendees || "",
+    });
+    setIsEditingSelectedEvent(true);
+  };
+
+  const handleUpdateEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedEvent || isSubmitting) return;
+    setIsSubmitting(true);
+    setActionError(null);
+
+    try {
+      const res = await fetch(`/api/calendar/${selectedEvent.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...editEventData,
+          projectId: editEventData.projectId || null,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setActionSuccess(`Event "${editEventData.title}" updated successfully.`);
+        setSelectedEvent(data.event);
+        setIsEditingSelectedEvent(false);
+        fetchEvents();
+      } else {
+        setActionError(data.error || "Failed to update event");
+      }
+    } catch (err: any) {
+      setActionError(err.message || "Network error");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -623,94 +693,243 @@ export default function CalendarPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-3 sm:p-4">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full max-h-[90dvh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
-              <span
-                className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${getEventBadgeClass(
-                  selectedEvent.eventType
-                )}`}
-              >
-                {selectedEvent.eventType.replace("_", " ")}
-              </span>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${getEventBadgeClass(
+                    selectedEvent.eventType
+                  )}`}
+                >
+                  {selectedEvent.eventType.replace("_", " ")}
+                </span>
+                {isEditingSelectedEvent && (
+                  <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                    Editing Event
+                  </span>
+                )}
+              </div>
               <button
-                onClick={() => setSelectedEvent(null)}
-                className="text-slate-400 hover:text-slate-700 p-1"
+                onClick={() => {
+                  setSelectedEvent(null);
+                  setIsEditingSelectedEvent(false);
+                }}
+                className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-4 sm:p-5 space-y-3.5 text-xs overflow-y-auto flex-1">
-              <h3 className="text-base font-bold text-slate-900">{selectedEvent.title}</h3>
-
-              {selectedEvent.description && (
-                <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-slate-700 text-xs leading-relaxed">
-                  {selectedEvent.description}
-                </div>
-              )}
-
-              <div className="space-y-2 pt-2 border-t border-slate-100 text-slate-600">
-                <div className="flex items-center gap-2">
-                  <CalendarIcon className="w-4 h-4 text-indigo-600 shrink-0" />
-                  <span>
-                    <strong>Starts:</strong>{" "}
-                    {new Date(selectedEvent.startDate).toLocaleString([], {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    })}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-indigo-600 shrink-0" />
-                  <span>
-                    <strong>Ends:</strong>{" "}
-                    {new Date(selectedEvent.endDate).toLocaleString([], {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    })}
-                  </span>
-                </div>
-
-                {selectedEvent.project && (
-                  <div className="flex items-center gap-2">
-                    <FolderGit2 className="w-4 h-4 text-indigo-600 shrink-0" />
-                    <span>
-                      <strong>Project:</strong> {selectedEvent.project.name}
-                    </span>
+            {isEditingSelectedEvent ? (
+              <form onSubmit={handleUpdateEvent} className="p-4 sm:p-5 space-y-3.5 text-xs overflow-y-auto flex-1 flex flex-col justify-between">
+                <div className="space-y-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Event Title</label>
+                    <input
+                      type="text"
+                      required
+                      value={editEventData.title}
+                      onChange={(e) => setEditEventData({ ...editEventData, title: e.target.value })}
+                      placeholder="e.g. Architecture Sync"
+                      className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    />
                   </div>
-                )}
 
-                {selectedEvent.attendees && (
-                  <div className="flex items-start gap-2">
-                    <Users className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Description</label>
+                    <textarea
+                      rows={2}
+                      value={editEventData.description}
+                      onChange={(e) => setEditEventData({ ...editEventData, description: e.target.value })}
+                      placeholder="Agenda, video call URL, or meeting notes..."
+                      className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <strong>Attendees:</strong>
-                      <p className="text-[11px] text-slate-500 mt-0.5 break-all">
-                        {selectedEvent.attendees}
-                      </p>
+                      <label className="block font-semibold text-slate-700 mb-1">Event Type</label>
+                      <select
+                        value={editEventData.eventType}
+                        onChange={(e) => setEditEventData({ ...editEventData, eventType: e.target.value as any })}
+                        className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                      >
+                        <option value="MEETING">Meeting</option>
+                        <option value="PROJECT_MILESTONE">Project Milestone</option>
+                        <option value="DEADLINE">Deadline</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Linked Project</label>
+                      <select
+                        value={editEventData.projectId}
+                        onChange={(e) => setEditEventData({ ...editEventData, projectId: e.target.value })}
+                        className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                      >
+                        <option value="">General (No Project Link)</option>
+                        {projects.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
-                )}
-              </div>
 
-              {canSchedule && (
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Start Date & Time</label>
+                      <input
+                        type="datetime-local"
+                        required
+                        value={editEventData.startDate}
+                        onChange={(e) => setEditEventData({ ...editEventData, startDate: e.target.value })}
+                        className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">End Date & Time</label>
+                      <input
+                        type="datetime-local"
+                        required
+                        value={editEventData.endDate}
+                        onChange={(e) => setEditEventData({ ...editEventData, endDate: e.target.value })}
+                        className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Attendees (Comma-separated)</label>
+                    <input
+                      type="text"
+                      value={editEventData.attendees}
+                      onChange={(e) => setEditEventData({ ...editEventData, attendees: e.target.value })}
+                      placeholder="alex@echybrid.com, marcus@echybrid.com"
+                      className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2 shrink-0">
                   <button
-                    onClick={() => handleDeleteEvent(selectedEvent)}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-semibold transition-colors"
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => setIsEditingSelectedEvent(false)}
+                    className="px-3 py-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Delete Event</span>
+                    Cancel
                   </button>
-
                   <button
-                    onClick={() => setSelectedEvent(null)}
-                    className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs transition-colors"
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="inline-flex items-center gap-1.5 px-4 py-1.5 gradient-brand text-white font-medium rounded-lg hover:opacity-95 transition-all shadow-xs cursor-pointer disabled:opacity-50"
                   >
-                    Close
+                    {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    <span>{isSubmitting ? "Saving..." : "Save Changes"}</span>
                   </button>
                 </div>
-              )}
-            </div>
+              </form>
+            ) : (
+              <div className="p-4 sm:p-5 space-y-3.5 text-xs overflow-y-auto flex-1">
+                <h3 className="text-base font-bold text-slate-900">{selectedEvent.title}</h3>
+
+                {selectedEvent.description && (
+                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-slate-700 text-xs leading-relaxed">
+                    {selectedEvent.description}
+                  </div>
+                )}
+
+                <div className="space-y-2 pt-2 border-t border-slate-100 text-slate-600">
+                  <div className="flex items-center gap-2">
+                    <CalendarIcon className="w-4 h-4 text-indigo-600 shrink-0" />
+                    <span>
+                      <strong>Starts:</strong>{" "}
+                      {new Date(selectedEvent.startDate).toLocaleString([], {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-indigo-600 shrink-0" />
+                    <span>
+                      <strong>Ends:</strong>{" "}
+                      {new Date(selectedEvent.endDate).toLocaleString([], {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
+                    </span>
+                  </div>
+
+                  {selectedEvent.project && (
+                    <div className="flex items-center gap-2">
+                      <FolderGit2 className="w-4 h-4 text-indigo-600 shrink-0" />
+                      <span>
+                        <strong>Project:</strong> {selectedEvent.project.name}
+                      </span>
+                    </div>
+                  )}
+
+                  {selectedEvent.attendees && (
+                    <div className="flex items-start gap-2">
+                      <Users className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                      <div>
+                        <strong>Attendees:</strong>
+                        <p className="text-[11px] text-slate-500 mt-0.5 break-all">
+                          {selectedEvent.attendees}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                  {canSchedule ? (
+                    <>
+                      <button
+                        onClick={() => handleDeleteEvent(selectedEvent)}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete Event</span>
+                      </button>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleStartEdit}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                          <span>Edit Event</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedEvent(null);
+                            setIsEditingSelectedEvent(false);
+                          }}
+                          className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs transition-colors cursor-pointer"
+                        >
+                          Close
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex justify-end w-full">
+                      <button
+                        onClick={() => {
+                          setSelectedEvent(null);
+                          setIsEditingSelectedEvent(false);
+                        }}
+                        className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs transition-colors cursor-pointer"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

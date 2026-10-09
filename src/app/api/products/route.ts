@@ -20,6 +20,18 @@ export async function GET(req: NextRequest) {
     type: "PRODUCT",
   };
 
+  // For EMPLOYEE role, only show products where employee has assigned sprint tasks
+  if (user.role === "EMPLOYEE") {
+    whereClause.tasks = {
+      some: {
+        OR: [
+          { assignedToId: user.userId },
+          { assignees: { contains: user.userId } },
+        ],
+      },
+    };
+  }
+
   if (search) {
     whereClause.OR = [
       { name: { contains: search } },

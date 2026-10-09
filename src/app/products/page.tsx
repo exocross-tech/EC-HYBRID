@@ -169,6 +169,7 @@ export default function ProductsPage() {
   const isAdmin = user?.role === "ADMIN";
   const isManager = user?.role === "MANAGER";
   const isHR = user?.role === "HR";
+  const isEmployee = user?.role === "EMPLOYEE";
   const canManageProducts = isAdmin || isManager;
 
   const fetchProducts = async () => {
@@ -530,8 +531,12 @@ export default function ProductsPage() {
 
   return (
     <AppLayout
-      title="In-House Products Hub"
-      subtitle="Proprietary software platforms, feature roadmaps, sprint execution, and technical vaults"
+      title={isEmployee ? "My Assigned Products & Roadmaps" : "In-House Products Hub"}
+      subtitle={
+        isEmployee
+          ? "Proprietary software platforms and sprint execution deliverables assigned to you"
+          : "Proprietary software platforms, feature roadmaps, sprint execution, and technical vaults"
+      }
     >
       {/* Floating Success Toast (Compact, Non-Intrusive, 3s Auto-dismiss) */}
       {actionSuccess && (
@@ -758,10 +763,14 @@ export default function ProductsPage() {
             <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-4 border border-indigo-100">
               <Box className="w-7 h-7" />
             </div>
-            <h3 className="text-base font-bold text-slate-900 mb-1">No In-House Products Found</h3>
+            <h3 className="text-base font-bold text-slate-900 mb-1">
+              {isEmployee ? "No Assigned Products Yet" : "No In-House Products Found"}
+            </h3>
             <p className="text-xs text-slate-500 max-w-sm mx-auto mb-6">
               {search || statusFilter !== "ALL"
                 ? "No products match the selected filters. Clear filters or modify your search."
+                : isEmployee
+                ? "You have not been assigned sprint deliverables or tasks on any in-house products yet."
                 : "Begin tracking proprietary software, internal SaaS tools, or platform architecture by registering your first product."}
             </p>
             {canManageProducts && (

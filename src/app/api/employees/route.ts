@@ -61,6 +61,7 @@ export async function GET(req: NextRequest) {
       status: true,
       role: true,
       avatarUrl: true,
+      notes: true,
       createdAt: true,
       _count: {
         select: {
@@ -84,7 +85,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { name, email, password, phone, designation, department, role } = body;
+    const { name, email, password, phone, designation, department, role, notes } = body;
 
     if (!name || !email || !password || !designation || !department) {
       return NextResponse.json(
@@ -125,6 +126,7 @@ export async function POST(req: NextRequest) {
         role: role || "EMPLOYEE",
         status: "ACTIVE",
         avatarUrl: body.avatarUrl || null,
+        notes: notes || null,
       },
       select: {
         id: true,
@@ -137,6 +139,7 @@ export async function POST(req: NextRequest) {
         status: true,
         role: true,
         avatarUrl: true,
+        notes: true,
       },
     });
 

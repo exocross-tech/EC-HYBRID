@@ -11,6 +11,7 @@ export interface UserSession {
   department: string;
   designation?: string;
   phone?: string;
+  avatarUrl?: string | null;
 }
 
 interface AuthContextType {

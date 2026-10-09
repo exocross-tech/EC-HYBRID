@@ -76,11 +76,20 @@ const MONTH_NAMES = [
 
 export default function PayrollPage() {
   const { user } = useAuth();
-  const isAdminOrHR = user?.role === "ADMIN" || user?.role === "HR";
+  const isAdmin = user?.role === "ADMIN";
+  const isHR = user?.role === "HR";
+  const isAdminOrHR = isAdmin || isHR;
   const isPersonalView = user?.role === "EMPLOYEE" || user?.role === "MANAGER";
 
   // State
   const [activeTab, setActiveTab] = useState<"payslips" | "structures" | "distributions">("payslips");
+
+  // Prevent HR or unauthorized users from viewing founder distributions
+  useEffect(() => {
+    if (isHR && activeTab === "distributions") {
+      setActiveTab("payslips");
+    }
+  }, [isHR, activeTab]);
   const [payslips, setPayslips] = useState<Payslip[]>([]);
   const [salaries, setSalaries] = useState<SalaryStructure[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
@@ -160,10 +169,9 @@ export default function PayrollPage() {
       }
 
       if (isAdminOrHR) {
-        const [salariesRes, empRes, distRes] = await Promise.all([
+        const [salariesRes, empRes] = await Promise.all([
           fetch("/api/payroll/salaries"),
           fetch("/api/employees"),
-          fetch("/api/payroll/distributions"),
         ]);
         if (salariesRes.ok) {
           const sData = await salariesRes.json();
@@ -173,13 +181,17 @@ export default function PayrollPage() {
           const eData = await empRes.json();
           setEmployees(eData.employees || []);
         }
-        if (distRes.ok) {
-          const dData = await distRes.json();
-          setDistributions(dData.distributions || []);
-          setDistributionFounders(dData.founders || []);
-          setPaidInvoices(dData.paidInvoices || []);
-          if (dData.metrics) {
-            setDistributionMetrics(dData.metrics);
+
+        if (isAdmin) {
+          const distRes = await fetch("/api/payroll/distributions");
+          if (distRes.ok) {
+            const dData = await distRes.json();
+            setDistributions(dData.distributions || []);
+            setDistributionFounders(dData.founders || []);
+            setPaidInvoices(dData.paidInvoices || []);
+            if (dData.metrics) {
+              setDistributionMetrics(dData.metrics);
+            }
           }
         }
       }
@@ -582,19 +594,21 @@ export default function PayrollPage() {
                 <span>Salary Structures ({salaries.length})</span>
               </div>
             </button>
-            <button
-              onClick={() => setActiveTab("distributions")}
-              className={`px-3 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all shrink-0 cursor-pointer ${
-                activeTab === "distributions"
-                  ? "bg-white text-emerald-700 shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Founder Profit Splits & Draws ({distributions.length})</span>
-              </div>
-            </button>
+            {isAdmin && (
+              <button
+                onClick={() => setActiveTab("distributions")}
+                className={`px-3 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all shrink-0 cursor-pointer ${
+                  activeTab === "distributions"
+                    ? "bg-white text-emerald-700 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Founder Profit Splits & Draws ({distributions.length})</span>
+                </div>
+              </button>
+            )}
           </div>
         ) : (
           <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
@@ -605,7 +619,7 @@ export default function PayrollPage() {
 
         {/* Action Buttons */}
         <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
-          {isAdminOrHR && activeTab === "distributions" ? (
+          {isAdmin && activeTab === "distributions" ? (
             <button
               onClick={() => handleOpenLogSplitModal()}
               className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer"
@@ -897,7 +911,7 @@ export default function PayrollPage() {
       )}
 
       {/* TAB 3: FOUNDER PROFIT DRAWS & REVENUE SPLITS (Requirement 5) */}
-      {isAdminOrHR && activeTab === "distributions" && (
+      {isAdmin && activeTab === "distributions" && (
         <div className="space-y-5">
           {/* Top 3 Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

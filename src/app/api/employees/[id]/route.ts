@@ -34,6 +34,7 @@ export async function GET(
       status: true,
       role: true,
       avatarUrl: true,
+      notes: true,
       createdAt: true,
       salary: user.role === "ADMIN" || user.role === "HR" || user.userId === id,
       assignedTasks: {
@@ -127,10 +128,29 @@ export async function PUT(
     if (body.designation) updateData.designation = body.designation;
     if (body.department) updateData.department = body.department;
     if (body.avatarUrl !== undefined) updateData.avatarUrl = body.avatarUrl;
+    if (body.notes !== undefined) updateData.notes = body.notes;
     if (body.status) updateData.status = body.status;
     if (body.action === "RESTRICT") updateData.status = "RESTRICTED";
     if (body.action === "UNRESTRICT") updateData.status = "ACTIVE";
     if (body.password) updateData.passwordHash = await hashPassword(body.password);
+
+    // Email update support with collision check
+    if (body.email && body.email.toLowerCase().trim() !== existing.email.toLowerCase()) {
+      const emailTrimmed = body.email.toLowerCase().trim();
+      const emailExists = await prisma.user.findFirst({
+        where: {
+          email: emailTrimmed,
+          id: { not: id },
+        },
+      });
+      if (emailExists) {
+        return NextResponse.json(
+          { error: `Email address "${emailTrimmed}" is already registered to another user.` },
+          { status: 400 }
+        );
+      }
+      updateData.email = emailTrimmed;
+    }
 
     // Only Admin can change roles to ADMIN or modify other Admins
     if (body.role) {
@@ -153,6 +173,7 @@ export async function PUT(
         status: true,
         role: true,
         avatarUrl: true,
+        notes: true,
       },
     });
 

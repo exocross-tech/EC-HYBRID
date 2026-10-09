@@ -45,15 +45,20 @@ export function Navbar({
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-        {/* Authenticated User Role Badge */}
-        <RoleBadge role={user.role} />
-
         {/* User Quick Identity Pill (Desktop Only) */}
-        <div className="hidden lg:flex items-center gap-2 pl-1">
-          <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-            {user.name.charAt(0).toUpperCase()}
-          </div>
-          <div className="text-left">
+        <div className="flex items-center gap-2 pl-1">
+          {user.avatarUrl ? (
+            <img
+              src={user.avatarUrl}
+              alt={user.name}
+              className="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-xs shrink-0"
+            />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
+              {user.name.charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div className="text-left hidden lg:block">
             <p className="text-xs font-bold text-slate-900 leading-tight truncate max-w-[130px]">
               {user.name}
             </p>

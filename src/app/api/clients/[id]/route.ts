@@ -79,7 +79,7 @@ export async function PUT(
     data: {
       name: body.name || existing.name,
       company: body.company || existing.company,
-      email: body.email || existing.email,
+      email: body.email !== undefined ? (body.email ? body.email.toLowerCase().trim() : null) : existing.email,
       phone: body.phone !== undefined ? body.phone : existing.phone,
       address: body.address !== undefined ? body.address : existing.address,
       notes: body.notes !== undefined ? body.notes : existing.notes,

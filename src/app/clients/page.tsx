@@ -34,7 +34,7 @@ interface Client {
   id: string;
   name: string;
   company: string;
-  email: string;
+  email?: string | null;
   phone?: string;
   address?: string;
   notes?: string;
@@ -124,6 +124,29 @@ export default function ClientsPage() {
   const isHR = user?.role === "HR";
   const canManageClients = isAdmin || isManager;
 
+  const defaultLeadSources = [
+    "Referral",
+    "Website",
+    "LinkedIn",
+    "Direct Outreach",
+    "Cold Call",
+    "Instagram",
+    "Google Search",
+    "Partner",
+    "Event / Conference",
+    "Word of Mouth",
+  ];
+  const existingLeadSources = Array.from(
+    new Set(
+      clients
+        .map((c) => c.leadSource?.trim())
+        .filter((s): s is string => Boolean(s && s.length > 0))
+    )
+  );
+  const availableLeadSources = Array.from(
+    new Set([...defaultLeadSources, ...existingLeadSources])
+  );
+
   const fetchClients = async () => {
     if (isHR) {
       setLoading(false);
@@ -198,7 +221,7 @@ export default function ClientsPage() {
     setEditFormData({
       name: client.name,
       company: client.company,
-      email: client.email,
+      email: client.email || "",
       phone: client.phone || "",
       address: client.address || "",
       notes: client.notes || "",
@@ -486,7 +509,7 @@ export default function ClientsPage() {
                         <div className="space-y-0.5">
                           <p className="text-slate-600 flex items-center gap-1.5">
                             <Mail className="w-3 h-3 text-slate-400 shrink-0" />
-                            <span className="truncate max-w-[160px]">{client.email}</span>
+                            <span className="truncate max-w-[160px]">{client.email || <span className="text-slate-400 italic">No email</span>}</span>
                           </p>
                           {client.phone && (
                             <p className="text-slate-500 flex items-center gap-1.5">
@@ -619,7 +642,7 @@ export default function ClientsPage() {
                   <div className="mt-3.5 space-y-1.5 text-xs text-slate-500 border-t border-slate-100 pt-3">
                     <div className="flex items-center gap-2">
                       <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="truncate">{client.email}</span>
+                      <span className="truncate">{client.email || <span className="text-slate-400 italic">No email</span>}</span>
                     </div>
                     {client.phone && (
                       <div className="flex items-center gap-2">
@@ -836,9 +859,13 @@ export default function ClientsPage() {
                   <span className="text-[10px] uppercase font-semibold text-slate-400 block">Direct Contact</span>
                   <div className="flex items-center gap-2 text-slate-800 font-medium">
                     <Mail className="w-3.5 h-3.5 text-indigo-500" />
-                    <a href={`mailto:${viewingClient.email}`} className="hover:underline hover:text-indigo-600 truncate">
-                      {viewingClient.email}
-                    </a>
+                    {viewingClient.email ? (
+                      <a href={`mailto:${viewingClient.email}`} className="hover:underline hover:text-indigo-600 truncate">
+                        {viewingClient.email}
+                      </a>
+                    ) : (
+                      <span className="text-slate-400 italic">No email registered</span>
+                    )}
                   </div>
                   {viewingClient.phone && (
                     <div className="flex items-center gap-2 text-slate-800 font-medium">
@@ -1104,7 +1131,6 @@ export default function ClientsPage() {
                   <label className="block font-semibold text-slate-700 mb-1">Email Address</label>
                   <input
                     type="email"
-                    required
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     placeholder="contact@acme.com"
@@ -1168,11 +1194,17 @@ export default function ClientsPage() {
                   <label className="block font-semibold text-slate-700 mb-1">Lead Source</label>
                   <input
                     type="text"
+                    list="addClientLeadSourcesList"
                     value={formData.leadSource}
                     onChange={(e) => setFormData({ ...formData, leadSource: e.target.value })}
-                    placeholder="Referral / Web / Ads"
+                    placeholder="Type or select source..."
                     className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                   />
+                  <datalist id="addClientLeadSourcesList">
+                    {availableLeadSources.map((source) => (
+                      <option key={source} value={source} />
+                    ))}
+                  </datalist>
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Account Status</label>
@@ -1322,10 +1354,17 @@ export default function ClientsPage() {
                   <label className="block font-semibold text-slate-700 mb-1">Lead Source</label>
                   <input
                     type="text"
+                    list="editClientLeadSourcesList"
                     value={editFormData.leadSource}
                     onChange={(e) => setEditFormData({ ...editFormData, leadSource: e.target.value })}
+                    placeholder="Type or select source..."
                     className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                   />
+                  <datalist id="editClientLeadSourcesList">
+                    {availableLeadSources.map((source) => (
+                      <option key={source} value={source} />
+                    ))}
+                  </datalist>
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Account Status</label>

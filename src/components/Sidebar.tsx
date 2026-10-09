@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { RoleBadge } from "./RoleBadge";
 import {
   LayoutDashboard,
   Users,
@@ -29,6 +30,7 @@ interface NavItem {
   href: string;
   icon: React.ElementType;
   show: boolean;
+  color: string;
   badge?: string;
 }
 
@@ -55,12 +57,14 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
       href: "/",
       icon: LayoutDashboard,
       show: true,
+      color: "text-sky-500",
     },
     {
       name: isEmployee ? "My Profile" : "Employees (HR)",
       href: "/employees",
       icon: Users,
       show: true, // Everyone has an employee view (filtered server-side)
+      color: "text-rose-500",
     },
     {
       name: "Clients (CRM)",
@@ -68,48 +72,56 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
       icon: Building2,
       // HR has NO access to client/project data per Section 2
       show: !isHR,
+      color: "text-emerald-500",
     },
     {
       name: "Projects",
       href: "/projects",
       icon: FolderGit2,
       show: !isHR,
+      color: "text-indigo-500",
     },
     {
       name: "Products",
       href: "/products",
       icon: Box,
       show: !isHR,
+      color: "text-amber-500",
     },
     {
       name: "Tasks & Planner",
       href: "/tasks",
       icon: CheckSquare,
       show: !isHR,
+      color: "text-blue-500",
     },
     {
       name: "Calendar",
       href: "/calendar",
       icon: Calendar,
       show: true,
+      color: "text-purple-500",
     },
     {
       name: "Leave Requests",
       href: "/leave",
       icon: Clock,
       show: true,
+      color: "text-orange-500",
     },
     {
       name: (isEmployee || isManager) ? "My Payslips" : "Salary & Payroll",
       href: "/payroll",
       icon: IndianRupee,
       show: true,
+      color: "text-teal-500",
     },
     {
       name: "Invoices & Billing",
       href: "/invoices",
       icon: CreditCard,
       show: !isHR,
+      color: "text-violet-500",
     },
     {
       name: "Reports & Profit",
@@ -117,18 +129,21 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
       icon: BarChart3,
       // Restricted to Admin and HR per Section 3.9
       show: isAdmin || isHR,
+      color: "text-pink-500",
     },
     {
       name: "Social Media",
       href: "/social",
       icon: Share2,
       show: true,
+      color: "text-cyan-500",
     },
     {
       name: "Org Settings",
       href: "/settings",
       icon: Settings,
       show: isAdmin,
+      color: "text-slate-500",
     },
   ];
 
@@ -155,8 +170,8 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
             >
               <div className="flex items-center gap-3">
                 <Icon
-                  className={`w-4 h-4 ${
-                    isActive ? "text-indigo-600" : "text-slate-400"
+                  className={`w-4 h-4 shrink-0 transition-transform ${item.color} ${
+                    isActive ? "scale-110 drop-shadow-xs" : "opacity-80 group-hover:opacity-100"
                   }`}
                 />
                 <span>{item.name}</span>
@@ -216,10 +231,13 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
                 priority
               />
             </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-base tracking-tight text-slate-900 leading-tight">
-                EC HYBRID
-              </span>
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-base tracking-tight text-slate-900 leading-tight">
+                  EC HYBRID
+                </span>
+                <RoleBadge role={user.role} />
+              </div>
               <span className="text-[11px] font-medium text-slate-500">
                 Operations Platform
               </span>
@@ -251,10 +269,13 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
               priority
             />
           </div>
-          <div className="flex flex-col">
-            <span className="font-bold text-base tracking-tight text-slate-900 leading-tight">
-              EC HYBRID
-            </span>
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-base tracking-tight text-slate-900 leading-tight">
+                EC HYBRID
+              </span>
+              <RoleBadge role={user.role} />
+            </div>
             <span className="text-[11px] font-medium text-slate-500">
               Operations Platform
             </span>

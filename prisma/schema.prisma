@@ -19,6 +19,7 @@ model User {
   status       String         @default("ACTIVE") // ACTIVE, INACTIVE (soft delete)
   role         String         @default("EMPLOYEE") // ADMIN, MANAGER, EMPLOYEE, HR
   avatarUrl    String?
+  notes        String?
   
   createdClients Client[]     @relation("ClientCreatedBy")
   assignedTasks  Task[]       @relation("TaskAssignedTo")
@@ -36,7 +37,7 @@ model Client {
   id          String    @id @default(cuid())
   name        String
   company     String
-  email       String
+  email       String?
   phone       String?
   address     String?
   notes       String?

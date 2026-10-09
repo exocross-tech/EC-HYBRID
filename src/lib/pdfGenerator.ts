@@ -991,37 +991,25 @@ export function buildModernTechPDFDoc(invoice: InvoicePDFData, org?: any): jsPDF
     try {
       doc.addImage(CYBER_HEADER_BG, "JPEG", 0, 0, pageWidth, 42);
     } catch {
-      doc.setFillColor(8, 12, 22);
+      doc.setFillColor(26, 26, 26);
       doc.rect(0, 0, pageWidth, 42, "F");
     }
 
-    // Paint a clean dark slate/navy rect over the left side of the banner
-    // to cleanly mask out the baked-in template logo from the background image!
-    doc.setFillColor(8, 12, 22); // Exactly matches the deep background color
-    doc.rect(0, 0, 70, 42, "F");
+    // Only if a custom uploaded organization logo exists (not default)
+    const isCustomLogo =
+      org?.logoUrl &&
+      typeof org.logoUrl === "string" &&
+      org.logoUrl.startsWith("data:image/") &&
+      !org.logoUrl.includes("logo.png");
 
-    // Dynamic Org Logo in banner if uploaded, or fallback to MINIMALIST_LOGO
-    let logoRendered = false;
-    if (org?.logoUrl && typeof org.logoUrl === "string" && org.logoUrl.startsWith("data:image/")) {
+    if (isCustomLogo) {
+      // Seamlessly mask the left area with the matching header background color (#1a1a1a)
+      doc.setFillColor(26, 26, 26);
+      doc.rect(0, 0, 65, 42, "F");
       try {
         const format = org.logoUrl.includes("png") ? "PNG" : "JPEG";
         doc.addImage(org.logoUrl, format, margin, 11, 20, 20);
-        logoRendered = true;
       } catch {}
-    }
-
-    if (!logoRendered) {
-      try {
-        doc.addImage(MINIMALIST_LOGO, "PNG", margin, 11, 20, 20);
-      } catch {
-        // Fallback vector EC block
-        doc.setFillColor(47, 107, 255);
-        doc.roundedRect(margin, 11, 20, 20, 2, 2, "F");
-        doc.setTextColor(255, 255, 255);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
-        doc.text("EC", margin + 10, 23, { align: "center" });
-      }
     }
 
     // Cyan circuit accent line beneath banner

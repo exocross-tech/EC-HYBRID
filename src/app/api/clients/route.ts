@@ -101,9 +101,9 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { name, company, email, phone, address, notes, clientType, leadSource, status: clientStatus } = body;
 
-    if (!name || !company || !email) {
+    if (!name || !company) {
       return NextResponse.json(
-        { error: "Contact name, company name, and email are required" },
+        { error: "Contact name and company name are required" },
         { status: 400 }
       );
     }
@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
       data: {
         name,
         company,
-        email: email.toLowerCase().trim(),
+        email: email ? email.toLowerCase().trim() : null,
         phone: phone || null,
         address: address || null,
         notes: notes || null,

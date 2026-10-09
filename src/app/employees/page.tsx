@@ -39,6 +39,7 @@ interface Employee {
   status: "ACTIVE" | "RESTRICTED" | "INACTIVE";
   role: string;
   avatarUrl?: string | null;
+  notes?: string | null;
   _count?: {
     assignedTasks: number;
     leaves: number;
@@ -46,7 +47,7 @@ interface Employee {
 }
 
 export default function EmployeesPage() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -71,9 +72,11 @@ export default function EmployeesPage() {
     department: "Engineering",
     role: "EMPLOYEE",
     avatarUrl: "",
+    notes: "",
   });
   const [editFormData, setEditFormData] = useState({
     name: "",
+    email: "",
     phone: "",
     designation: "",
     department: "",
@@ -81,6 +84,7 @@ export default function EmployeesPage() {
     status: "ACTIVE",
     password: "",
     avatarUrl: "",
+    notes: "",
   });
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
@@ -151,6 +155,7 @@ export default function EmployeesPage() {
           department: "Engineering",
           role: "EMPLOYEE",
           avatarUrl: "",
+          notes: "",
         });
         fetchEmployees();
       } else {
@@ -167,6 +172,7 @@ export default function EmployeesPage() {
     setEditingEmployee(emp);
     setEditFormData({
       name: emp.name,
+      email: emp.email,
       phone: emp.phone || "",
       designation: emp.designation,
       department: emp.department,
@@ -174,6 +180,7 @@ export default function EmployeesPage() {
       status: emp.status,
       password: "",
       avatarUrl: emp.avatarUrl || "",
+      notes: emp.notes || "",
     });
     setActionError(null);
     setIsEditModalOpen(true);
@@ -196,6 +203,9 @@ export default function EmployeesPage() {
       if (res.ok) {
         setActionSuccess(`Employee ${editingEmployee.name} updated successfully.`);
         setIsEditModalOpen(false);
+        if (user?.id === editingEmployee.id) {
+          await refreshUser();
+        }
         fetchEmployees();
       } else {
         setActionError(data.error || "Failed to update employee");
@@ -616,6 +626,17 @@ export default function EmployeesPage() {
                   </p>
                 </div>
               </div>
+
+              {viewingEmployee.notes && (
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+                    Employee Notes & Records
+                  </span>
+                  <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">
+                    {viewingEmployee.notes}
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex justify-end shrink-0">
@@ -829,6 +850,19 @@ export default function EmployeesPage() {
                 </select>
               </div>
 
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Employee Notes & Records
+                </label>
+                <textarea
+                  rows={3}
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  placeholder="Onboarding notes, equipment records, certifications, emergency contacts, or internal remarks..."
+                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                />
+              </div>
+
               <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2 shrink-0">
                 <button
                   type="button"
@@ -925,6 +959,19 @@ export default function EmployeesPage() {
                       />
                     </div>
                     <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Corporate Email / Login ID</label>
+                      <input
+                        type="email"
+                        required
+                        value={editFormData.email}
+                        onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                        className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
                       <label className="block font-semibold text-slate-700 mb-1">Phone Number</label>
                       <input
                         type="text"
@@ -933,9 +980,6 @@ export default function EmployeesPage() {
                         className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
                       />
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">Designation</label>
                       <input
@@ -945,6 +989,9 @@ export default function EmployeesPage() {
                         className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
                       />
                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">Department</label>
                       <select
@@ -959,9 +1006,6 @@ export default function EmployeesPage() {
                         <option value="Operations">Operations</option>
                       </select>
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">Status</label>
                       <select
@@ -974,19 +1018,20 @@ export default function EmployeesPage() {
                         <option value="INACTIVE">INACTIVE</option>
                       </select>
                     </div>
-                    <div>
-                      <label className="block font-semibold text-slate-700 mb-1">Assigned Role</label>
-                      <select
-                        value={editFormData.role}
-                        onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
-                        className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
-                      >
-                        <option value="EMPLOYEE">EMPLOYEE</option>
-                        <option value="MANAGER">MANAGER</option>
-                        <option value="HR">HR</option>
-                        {user?.role === "ADMIN" && <option value="ADMIN">ADMIN</option>}
-                      </select>
-                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Assigned Role</label>
+                    <select
+                      value={editFormData.role}
+                      onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
+                      className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
+                    >
+                      <option value="EMPLOYEE">EMPLOYEE</option>
+                      <option value="MANAGER">MANAGER</option>
+                      <option value="HR">HR</option>
+                      {user?.role === "ADMIN" && <option value="ADMIN">ADMIN</option>}
+                    </select>
                   </div>
 
                   <div>
@@ -998,6 +1043,19 @@ export default function EmployeesPage() {
                       value={editFormData.password}
                       onChange={(e) => setEditFormData({ ...editFormData, password: e.target.value })}
                       placeholder="••••••••••••"
+                      className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      Employee Notes & Records
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={editFormData.notes}
+                      onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
+                      placeholder="Performance notes, hardware details, internal remarks..."
                       className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
                     />
                   </div>
