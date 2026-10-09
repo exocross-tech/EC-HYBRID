@@ -21,6 +21,7 @@ import {
   LogOut,
   ShieldCheck,
   X,
+  Box,
 } from "lucide-react";
 
 interface NavItem {
@@ -72,6 +73,12 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
       name: "Projects",
       href: "/projects",
       icon: FolderGit2,
+      show: !isHR,
+    },
+    {
+      name: "Products",
+      href: "/products",
+      icon: Box,
       show: !isHR,
     },
     {
