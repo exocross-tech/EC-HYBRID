@@ -21,10 +21,16 @@ export async function GET(req: NextRequest) {
   let whereClause: any = {};
 
   if (user.role === "EMPLOYEE") {
-    // Standard staff: sees ONLY their own tasks
-    whereClause.assignedToId = user.userId;
+    // Standard staff: sees tasks where they are primary lead OR co-assigned
+    whereClause.OR = [
+      { assignedToId: user.userId },
+      { assignees: { contains: user.userId } },
+    ];
   } else if (assignedToId) {
-    whereClause.assignedToId = assignedToId;
+    whereClause.OR = [
+      { assignedToId: assignedToId },
+      { assignees: { contains: assignedToId } },
+    ];
   }
 
   if (projectId) whereClause.projectId = projectId;
@@ -32,11 +38,20 @@ export async function GET(req: NextRequest) {
   if (priorityFilter) whereClause.priority = priorityFilter;
 
   if (search) {
-    whereClause.OR = [
+    const searchConditions = [
       { title: { contains: search } },
       { description: { contains: search } },
       { project: { name: { contains: search } } },
     ];
+    if (whereClause.OR) {
+      whereClause.AND = [
+        { OR: whereClause.OR },
+        { OR: searchConditions },
+      ];
+      delete whereClause.OR;
+    } else {
+      whereClause.OR = searchConditions;
+    }
   }
 
   // Daily planner date filtering: tasks due on or before specified day
@@ -50,19 +65,45 @@ export async function GET(req: NextRequest) {
     };
   }
 
-  const tasks = await prisma.task.findMany({
-    where: whereClause,
-    include: {
-      project: { select: { id: true, name: true, type: true, status: true } },
-      assignedTo: { select: { id: true, name: true, email: true, department: true } },
-    },
-    orderBy: [
-      { priority: "desc" },
-      { dueDate: "asc" },
-    ],
-  });
+  try {
+    const rawTasks = await prisma.task.findMany({
+      where: whereClause,
+      include: {
+        project: { select: { id: true, name: true, type: true, status: true } },
+        assignedTo: { select: { id: true, name: true, email: true, department: true } },
+      },
+      orderBy: [
+        { priority: "desc" },
+        { dueDate: "asc" },
+      ],
+    });
 
-  return NextResponse.json({ tasks });
+    // Parse assignees JSON string for each task with automatic fallback
+    const tasks = rawTasks.map((t) => {
+      let parsedAssignees: any[] = [];
+      if (t.assignees) {
+        try {
+          parsedAssignees = JSON.parse(t.assignees);
+        } catch {
+          parsedAssignees = [];
+        }
+      }
+      if (!parsedAssignees || parsedAssignees.length === 0) {
+        if (t.assignedTo) {
+          parsedAssignees = [t.assignedTo];
+        }
+      }
+      return {
+        ...t,
+        assignees: parsedAssignees,
+      };
+    });
+
+    return NextResponse.json({ tasks });
+  } catch (err: any) {
+    console.error("GET /api/tasks error:", err);
+    return NextResponse.json({ error: err.message || "Failed to fetch tasks" }, { status: 500 });
+  }
 }
 
 // POST /api/tasks - Admin & Manager only
@@ -74,18 +115,39 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { title, description, projectId, assignedToId, status: taskStatus, priority, dueDate } = body;
+    const { title, description, projectId, assignedToId, assigneeIds, status: taskStatus, priority, dueDate } = body;
 
     if (!title || !projectId) {
       return NextResponse.json({ error: "Title and Project are required" }, { status: 400 });
     }
+
+    // Resolve multi-assignees list
+    let targetAssigneeIds: string[] = [];
+    if (Array.isArray(assigneeIds) && assigneeIds.length > 0) {
+      targetAssigneeIds = Array.from(new Set(assigneeIds.filter(Boolean)));
+    } else if (assignedToId) {
+      targetAssigneeIds = [assignedToId];
+    }
+
+    // Fetch user details for all assigned members
+    let assignedUsers: Array<{ id: string; name: string; email: string; department?: string }> = [];
+    if (targetAssigneeIds.length > 0) {
+      assignedUsers = await prisma.user.findMany({
+        where: { id: { in: targetAssigneeIds } },
+        select: { id: true, name: true, email: true, department: true },
+      });
+    }
+
+    const primaryAssigneeId = targetAssigneeIds[0] || null;
+    const assigneesJson = assignedUsers.length > 0 ? JSON.stringify(assignedUsers) : null;
 
     const newTask = await prisma.task.create({
       data: {
         title,
         description: description || null,
         projectId,
-        assignedToId: assignedToId || null,
+        assignedToId: primaryAssigneeId,
+        assignees: assigneesJson,
         status: taskStatus || "TODO",
         priority: priority || "MEDIUM",
         dueDate: dueDate ? new Date(dueDate) : null,
@@ -96,30 +158,40 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Create in-app notification for the assigned employee
-    if (newTask.assignedToId) {
-      await prisma.notification.create({
-        data: {
-          userId: newTask.assignedToId,
-          title: "New Task Assigned",
-          message: `You were assigned task: "${newTask.title}" in project ${newTask.project.name}`,
-          type: "TASK_ASSIGNED",
-          link: "/tasks",
-        },
-      });
+    // Create in-app notification for ALL assigned collaborators simultaneously
+    for (const collaborator of assignedUsers) {
+      if (collaborator.id !== user.userId) {
+        await prisma.notification.create({
+          data: {
+            userId: collaborator.id,
+            title: "New Task Assigned",
+            message: `You were assigned to: "${newTask.title}" in project ${newTask.project.name}`,
+            type: "TASK_ASSIGNED",
+            link: "/tasks",
+          },
+        });
+      }
     }
+
+    const namesList = assignedUsers.map((u) => u.name).join(", ") || "Unassigned";
 
     await prisma.auditLog.create({
       data: {
         userId: user.userId,
         action: "TASK_CREATED",
-        details: `Created task "${newTask.title}" assigned to ${newTask.assignedTo?.name || "Unassigned"}`,
+        details: `Created task "${newTask.title}" assigned to: ${namesList}`,
       },
     });
 
     broadcastRealtimeEvent("TASK_CREATED", { id: newTask.id, title: newTask.title });
 
-    return NextResponse.json({ success: true, task: newTask }, { status: 201 });
+    return NextResponse.json({
+      success: true,
+      task: {
+        ...newTask,
+        assignees: assignedUsers,
+      },
+    }, { status: 201 });
   } catch (err: any) {
     console.error("Create task error:", err);
     return NextResponse.json({ error: err.message || "Failed to create task" }, { status: 500 });

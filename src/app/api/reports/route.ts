@@ -87,7 +87,18 @@ export async function GET() {
 
     // Workload per employee
     const workloadPerEmployee = employees.map((emp) => {
-      const empTasks = tasks.filter((t) => t.assignedTo?.id === emp.id);
+      const empTasks = tasks.filter((t) => {
+        if (t.assignedTo?.id === emp.id || t.assignedToId === emp.id) return true;
+        if (t.assignees) {
+          try {
+            const parsed = JSON.parse(t.assignees);
+            if (Array.isArray(parsed) && parsed.some((u: any) => u.id === emp.id)) return true;
+          } catch {
+            return t.assignees.includes(emp.id);
+          }
+        }
+        return false;
+      });
       return {
         id: emp.id,
         name: emp.name,

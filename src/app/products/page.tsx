@@ -34,6 +34,8 @@ import {
   Check,
   Copy,
 } from "lucide-react";
+import { AssigneeAvatarCluster } from "@/components/AssigneeAvatarCluster";
+import { MultiAssigneeSelect } from "@/components/MultiAssigneeSelect";
 
 interface ProductTask {
   id: string;
@@ -48,6 +50,12 @@ interface ProductTask {
     email: string;
     department?: string;
   } | null;
+  assignees?: Array<{
+    id: string;
+    name: string;
+    email?: string;
+    department?: string;
+  }>;
 }
 
 interface Product {
@@ -129,7 +137,7 @@ export default function ProductsPage() {
     description: "",
     priority: "MEDIUM",
     dueDate: "",
-    assignedToId: "",
+    assigneeIds: [] as string[],
   });
 
   // Create / Edit Product Form state
@@ -250,7 +258,12 @@ export default function ProductsPage() {
       const res = await fetch("/api/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          budget: formData.budget === "" ? 0 : parseFloat(formData.budget) || 0,
+          startDate: formData.startDate ? formData.startDate : null,
+          endDate: formData.endDate ? formData.endDate : null,
+        }),
       });
 
       const data = await res.json();
@@ -281,13 +294,16 @@ export default function ProductsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
+          budget: formData.budget === "" ? 0 : parseFloat(formData.budget) || 0,
+          startDate: formData.startDate ? formData.startDate : null,
+          endDate: formData.endDate ? formData.endDate : null,
           type: "PRODUCT",
         }),
       });
 
       const data = await res.json();
       if (res.ok) {
-        setActionSuccess(`Product "${data.project.name}" updated successfully.`);
+        setActionSuccess(`Product "${data.project?.name || formData.name}" updated successfully.`);
         setIsEditModalOpen(false);
         setSelectedProduct(null);
         fetchProducts();
@@ -372,7 +388,8 @@ export default function ProductsPage() {
           description: newTaskData.description ? newTaskData.description.trim() : null,
           priority: newTaskData.priority,
           dueDate: newTaskData.dueDate || null,
-          assignedToId: newTaskData.assignedToId || null,
+          assignedToId: newTaskData.assigneeIds[0] || null,
+          assigneeIds: newTaskData.assigneeIds,
           projectId: viewingRoadmapProduct.id,
           status: "TODO",
         }),
@@ -386,7 +403,7 @@ export default function ProductsPage() {
           description: "",
           priority: "MEDIUM",
           dueDate: "",
-          assignedToId: "",
+          assigneeIds: [],
         });
         setShowAddTaskForm(false);
         fetchProducts();
@@ -1125,19 +1142,13 @@ export default function ProductsPage() {
                       />
                     </div>
                     <div className="sm:col-span-2">
-                      <label className="block text-xs font-medium text-slate-700 mb-1">Assign Engineer / Lead</label>
-                      <select
-                        value={newTaskData.assignedToId}
-                        onChange={(e) => setNewTaskData({ ...newTaskData, assignedToId: e.target.value })}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                      >
-                        <option value="">-- Unassigned --</option>
-                        {teamMembers.map((member) => (
-                          <option key={member.id} value={member.id}>
-                            {member.name} ({member.department || member.role || "Team"})
-                          </option>
-                        ))}
-                      </select>
+                      <label className="block text-xs font-medium text-slate-700 mb-1">Assign Engineers / Collaborators</label>
+                      <MultiAssigneeSelect
+                        employees={teamMembers}
+                        selectedIds={newTaskData.assigneeIds}
+                        onChange={(ids) => setNewTaskData({ ...newTaskData, assigneeIds: ids })}
+                        placeholder="Search & select sprint engineers..."
+                      />
                     </div>
                   </div>
                   <div className="flex justify-end gap-2 pt-2">
@@ -1196,14 +1207,12 @@ export default function ProductsPage() {
                             {task.title}
                           </p>
                           <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400">
-                            {task.assignedTo ? (
-                              <span className="flex items-center gap-1 text-slate-600 font-medium">
-                                <User className="w-3 h-3 text-slate-400" />
-                                {task.assignedTo.name}
-                              </span>
-                            ) : (
-                              <span>Unassigned</span>
-                            )}
+                            <AssigneeAvatarCluster
+                              assignees={task.assignees}
+                              fallbackUser={task.assignedTo}
+                              size="xs"
+                              showName={true}
+                            />
                             {task.dueDate && (
                               <span>&bull; Due {formatDate(task.dueDate)}</span>
                             )}

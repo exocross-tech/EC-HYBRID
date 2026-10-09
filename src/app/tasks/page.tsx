@@ -23,8 +23,11 @@ import {
   Kanban,
   ListTodo,
   Loader2,
+  Users,
 } from "lucide-react";
 import { formatDate } from "@/lib/formatDate";
+import { AssigneeAvatarCluster } from "@/components/AssigneeAvatarCluster";
+import { MultiAssigneeSelect } from "@/components/MultiAssigneeSelect";
 
 interface Task {
   id: string;
@@ -46,6 +49,12 @@ interface Task {
     email: string;
     department?: string;
   };
+  assignees?: Array<{
+    id: string;
+    name: string;
+    email?: string;
+    department?: string;
+  }>;
 }
 
 interface ProjectOption {
@@ -68,6 +77,7 @@ export default function TasksPage() {
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"KANBAN" | "PLANNER">("KANBAN");
   const [priorityFilter, setPriorityFilter] = useState("");
+  const [assigneeFilter, setAssigneeFilter] = useState("");
   const [plannerDate, setPlannerDate] = useState("");
   const [selectedMobileColumn, setSelectedMobileColumn] = useState<string>("ALL");
 
@@ -82,6 +92,7 @@ export default function TasksPage() {
     description: "",
     projectId: "",
     assignedToId: "",
+    assigneeIds: [] as string[],
     status: "TODO",
     priority: "MEDIUM",
     dueDate: "",
@@ -118,6 +129,7 @@ export default function TasksPage() {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
       if (priorityFilter) params.set("priority", priorityFilter);
+      if (assigneeFilter) params.set("assignedToId", assigneeFilter);
       if (viewMode === "PLANNER" && plannerDate) params.set("date", plannerDate);
 
       const res = await fetch(`/api/tasks?${params.toString()}`);
@@ -155,7 +167,7 @@ export default function TasksPage() {
 
   useEffect(() => {
     fetchTasks();
-  }, [search, priorityFilter, viewMode, plannerDate, user?.role]);
+  }, [search, priorityFilter, assigneeFilter, viewMode, plannerDate, user?.role]);
 
   useEffect(() => {
     fetchOptions();
@@ -194,7 +206,11 @@ export default function TasksPage() {
       const res = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          assignedToId: formData.assigneeIds[0] || formData.assignedToId || null,
+          assigneeIds: formData.assigneeIds,
+        }),
       });
       const data = await res.json();
 
@@ -206,6 +222,7 @@ export default function TasksPage() {
           description: "",
           projectId: "",
           assignedToId: "",
+          assigneeIds: [],
           status: "TODO",
           priority: "MEDIUM",
           dueDate: "",
@@ -244,11 +261,19 @@ export default function TasksPage() {
 
   const handleOpenEdit = (task: Task) => {
     setSelectedTask(task);
+    const existingAssigneeIds =
+      task.assignees && task.assignees.length > 0
+        ? task.assignees.map((u) => u.id)
+        : task.assignedToId
+        ? [task.assignedToId]
+        : [];
+
     setFormData({
       title: task.title,
       description: task.description || "",
       projectId: task.projectId,
-      assignedToId: task.assignedToId || "",
+      assignedToId: existingAssigneeIds[0] || "",
+      assigneeIds: existingAssigneeIds,
       status: task.status,
       priority: task.priority,
       dueDate: task.dueDate ? task.dueDate.split("T")[0] : "",
@@ -267,7 +292,11 @@ export default function TasksPage() {
       const res = await fetch(`/api/tasks/${selectedTask.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          assignedToId: formData.assigneeIds[0] || formData.assignedToId || null,
+          assigneeIds: formData.assigneeIds,
+        }),
       });
       const data = await res.json();
 
@@ -397,6 +426,22 @@ export default function TasksPage() {
             <option value="LOW">Low</option>
           </select>
 
+          {/* Assignee Filter (Admin & Manager) */}
+          {!isEmployee && (
+            <select
+              value={assigneeFilter}
+              onChange={(e) => setAssigneeFilter(e.target.value)}
+              className="flex-1 sm:flex-none px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+            >
+              <option value="">All Assignees</option>
+              {employees.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.name}
+                </option>
+              ))}
+            </select>
+          )}
+
           {/* Date Picker for Daily Planner */}
           {viewMode === "PLANNER" && (
             <input
@@ -416,6 +461,7 @@ export default function TasksPage() {
                 description: "",
                 projectId: projects[0]?.id || "",
                 assignedToId: employees[0]?.id || "",
+                assigneeIds: employees[0]?.id ? [employees[0].id] : [],
                 status: "TODO",
                 priority: "MEDIUM",
                 dueDate: "",
@@ -546,12 +592,12 @@ export default function TasksPage() {
                           {/* Footer with Assignee & Status Quick Switcher */}
                           <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
                             <div className="flex items-center gap-1.5">
-                              <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-indigo-700 to-blue-500 text-white flex items-center justify-center font-bold text-[9px]">
-                                {task.assignedTo?.name?.charAt(0) || "U"}
-                              </div>
-                              <span className="text-[11px] text-slate-600 font-medium truncate max-w-[90px]">
-                                {task.assignedTo?.name?.split(" ")[0] || "Unassigned"}
-                              </span>
+                              <AssigneeAvatarCluster
+                                assignees={task.assignees}
+                                fallbackUser={task.assignedTo}
+                                size="xs"
+                                showName={true}
+                              />
                             </div>
 
                             {/* Move Status Dropdown (Accessible to employee for their task & managers) */}
@@ -677,8 +723,12 @@ export default function TasksPage() {
                           {task.project.name}
                         </span>
                         <span className="flex items-center gap-1">
-                          <User className="w-3 h-3 text-slate-400" />
-                          {task.assignedTo?.name || "Unassigned"}
+                          <AssigneeAvatarCluster
+                            assignees={task.assignees}
+                            fallbackUser={task.assignedTo}
+                            size="xs"
+                            showName={true}
+                          />
                         </span>
                         {task.dueDate && (
                           <span className="flex items-center gap-1 text-amber-700">
@@ -757,39 +807,42 @@ export default function TasksPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Project</label>
-                  <select
-                    required
-                    value={formData.projectId}
-                    onChange={(e) => setFormData({ ...formData, projectId: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  >
-                    <option value="">Select Project</option>
-                    {projects.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Project</label>
+                <select
+                  required
+                  value={formData.projectId}
+                  onChange={(e) => setFormData({ ...formData, projectId: e.target.value })}
+                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                >
+                  <option value="">Select Project</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Assignee</label>
-                  <select
-                    value={formData.assignedToId}
-                    onChange={(e) => setFormData({ ...formData, assignedToId: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  >
-                    <option value="">Unassigned</option>
-                    {employees.map((e) => (
-                      <option key={e.id} value={e.id}>
-                        {e.name} ({e.department})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Assignees (Collaborative Team Assignment)
+                </label>
+                <MultiAssigneeSelect
+                  employees={employees}
+                  selectedIds={formData.assigneeIds}
+                  onChange={(ids) =>
+                    setFormData({
+                      ...formData,
+                      assigneeIds: ids,
+                      assignedToId: ids[0] || "",
+                    })
+                  }
+                  placeholder="Select one or more team members..."
+                />
+                <span className="text-[10px] text-slate-400 mt-1 block">
+                  Assign multiple team members. The first member is designated as the Lead ⭐.
+                </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

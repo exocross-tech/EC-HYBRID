@@ -44,6 +44,7 @@ export async function GET(req: NextRequest) {
             status: true,
             priority: true,
             dueDate: true,
+            assignees: true,
             assignedTo: { select: { id: true, name: true, email: true, department: true } },
           },
           orderBy: [{ status: "asc" }, { dueDate: "asc" }],
@@ -59,6 +60,30 @@ export async function GET(req: NextRequest) {
       select: { id: true, name: true, email: true, department: true, role: true },
       orderBy: { name: "asc" },
     });
+
+    // Format sprint tasks with parsed assignees
+    const formattedProducts = products.map((prod) => ({
+      ...prod,
+      tasks: (prod.tasks || []).map((t: any) => {
+        let parsedAssignees: any[] = [];
+        if (t.assignees) {
+          try {
+            parsedAssignees = JSON.parse(t.assignees);
+          } catch {
+            parsedAssignees = [];
+          }
+        }
+        if (!parsedAssignees || parsedAssignees.length === 0) {
+          if (t.assignedTo) {
+            parsedAssignees = [t.assignedTo];
+          }
+        }
+        return {
+          ...t,
+          assignees: parsedAssignees,
+        };
+      }),
+    }));
 
     // Calculate aggregated metrics
     let totalTasks = 0;
@@ -103,7 +128,7 @@ export async function GET(req: NextRequest) {
       totalBudget,
     };
 
-    return NextResponse.json({ products, metrics, teamMembers });
+    return NextResponse.json({ products: formattedProducts, metrics, teamMembers });
   } catch (err: any) {
     console.error("Fetch products error:", err);
     return NextResponse.json({ error: err.message || "Failed to fetch products" }, { status: 500 });

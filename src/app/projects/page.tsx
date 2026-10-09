@@ -28,6 +28,8 @@ import {
   Key,
   Layers,
   CheckSquare,
+  Box,
+  Flame,
 } from "lucide-react";
 
 interface Project {
@@ -169,10 +171,18 @@ export default function ProjectsPage() {
     setActionSuccess(null);
 
     try {
+      const payload = {
+        ...formData,
+        budget: formData.budget === "" ? 0 : parseFloat(formData.budget) || 0,
+        startDate: formData.startDate ? formData.startDate : null,
+        endDate: formData.endDate ? formData.endDate : null,
+        clientId: formData.type === "PRODUCT" ? null : (formData.clientId || null),
+      };
+
       const res = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
 
@@ -227,10 +237,18 @@ export default function ProjectsPage() {
     setActionError(null);
 
     try {
+      const payload = {
+        ...formData,
+        budget: formData.budget === "" ? 0 : parseFloat(formData.budget) || 0,
+        startDate: formData.startDate ? formData.startDate : null,
+        endDate: formData.endDate ? formData.endDate : null,
+        clientId: formData.type === "PRODUCT" ? null : (formData.clientId || null),
+      };
+
       const res = await fetch(`/api/projects/${selectedProject.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
 
@@ -453,7 +471,7 @@ export default function ProjectsPage() {
                 <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider">
                   <th className="py-3 px-4">Project Name & Type</th>
                   <th className="py-3 px-4">Client Affiliation</th>
-                  <th className="py-3 px-4">Budget & Billing</th>
+                  <th className="py-3 px-4">Financial Valuation & Allocation</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4">Task Completion</th>
                   <th className="py-3 px-4">Timeline</th>
@@ -495,16 +513,37 @@ export default function ProjectsPage() {
                             <span className="font-medium">{proj.client.company}</span>
                           </div>
                         ) : (
-                          <span className="text-slate-400 italic text-[11px]">Internal Roadwork</span>
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
+                            <Box className="w-3 h-3 text-indigo-500" />
+                            In-House Platform
+                          </span>
                         )}
                       </td>
 
-                      {/* Budget & Billing */}
+                      {/* Financial Valuation & Allocation */}
                       <td className="py-3.5 px-4">
-                        <div>
-                          <p className="font-bold text-indigo-700">{formatINR(proj.budget)}</p>
-                          <p className="text-[10px] text-slate-500">{proj.billingType === "SUBSCRIPTION" ? "Subscription" : "Fixed Milestone"}</p>
-                        </div>
+                        {proj.type === "PRODUCT" ? (
+                          <div>
+                            <p className="font-bold text-amber-700 flex items-center gap-1">
+                              {formatINR(proj.budget)}
+                              <span className="text-[9px] font-semibold text-amber-700 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
+                                Expense
+                              </span>
+                            </p>
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50/80 border border-amber-200 px-1.5 py-0.5 rounded mt-0.5">
+                              <Flame className="w-3 h-3 text-amber-500" />
+                              R&D Capital Outlay (Self-Funded)
+                            </span>
+                          </div>
+                        ) : (
+                          <div>
+                            <p className="font-bold text-indigo-700">{formatINR(proj.budget)}</p>
+                            <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 font-medium mt-0.5">
+                              <Building2 className="w-3 h-3 text-indigo-400" />
+                              {proj.billingType === "SUBSCRIPTION" ? "Subscription Contract" : "Fixed Milestone (Revenue)"}
+                            </span>
+                          </div>
+                        )}
                       </td>
 
                       {/* Status */}
@@ -619,9 +658,16 @@ export default function ProjectsPage() {
                     <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statusBadge}`}>
                       {proj.status}
                     </span>
-                    <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">
-                      {proj.type === "SERVICE" ? "IT Services" : "Internal Product"}
-                    </span>
+                    {proj.type === "PRODUCT" ? (
+                      <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
+                        <Flame className="w-2.5 h-2.5 text-amber-500" />
+                        Proprietary R&D Platform
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">
+                        IT Services (Contracted)
+                      </span>
+                    )}
                   </div>
 
                   <h3 className="font-bold text-sm text-slate-900 leading-snug">{proj.name}</h3>
@@ -630,14 +676,17 @@ export default function ProjectsPage() {
                   )}
 
                   <div className="mt-3 flex items-center gap-2 text-xs text-slate-600">
-                    <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span>
-                      {proj.client ? (
-                        <>Client: <strong>{proj.client.company}</strong></>
-                      ) : (
-                        <em className="text-slate-400">Internal Product Roadwork</em>
-                      )}
-                    </span>
+                    {proj.client ? (
+                      <>
+                        <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>Client: <strong>{proj.client.company}</strong></span>
+                      </>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
+                        <Box className="w-3 h-3 text-indigo-500" />
+                        In-House Platform
+                      </span>
+                    )}
                   </div>
 
                   {/* Progress Bar */}
@@ -658,10 +707,21 @@ export default function ProjectsPage() {
                 {/* Footer Actions */}
                 <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
                   <div>
-                    <span className="text-[11px] text-slate-400 block">
-                      Budget ({proj.billingType === "SUBSCRIPTION" ? "Subscription" : "Fixed"})
-                    </span>
-                    <span className="font-bold text-indigo-700 text-sm">{formatINR(proj.budget)}</span>
+                    {proj.type === "PRODUCT" ? (
+                      <>
+                        <span className="text-[10px] font-medium text-amber-600 block uppercase">
+                          R&D Capital Allocated (Internal)
+                        </span>
+                        <span className="font-bold text-amber-700 text-sm">{formatINR(proj.budget)}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-[11px] text-slate-400 block">
+                          Contracted Value ({proj.billingType === "SUBSCRIPTION" ? "Subscription" : "Fixed"})
+                        </span>
+                        <span className="font-bold text-indigo-700 text-sm">{formatINR(proj.budget)}</span>
+                      </>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-1">
@@ -717,7 +777,7 @@ export default function ProjectsPage() {
                 <div>
                   <h3 className="font-bold text-sm sm:text-base">{viewingProject.name}</h3>
                   <p className="text-xs text-indigo-300">
-                    {viewingProject.client ? viewingProject.client.company : "Internal Product Roadwork"}
+                    {viewingProject.client ? viewingProject.client.company : "Proprietary In-House Platform"}
                   </p>
                 </div>
               </div>
@@ -732,19 +792,38 @@ export default function ProjectsPage() {
             <div className="p-4 sm:p-5 overflow-y-auto space-y-4 text-xs flex-1">
               <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div>
-                  <span className="text-[10px] uppercase text-slate-400 font-semibold">Budget</span>
-                  <p className="font-bold text-slate-900 text-sm mt-0.5">{formatINR(viewingProject.budget)}</p>
+                  <span className="text-[10px] uppercase text-slate-400 font-semibold">
+                    {viewingProject.type === "PRODUCT" ? "R&D Capital Allocated" : "Budget"}
+                  </span>
+                  <p className={`font-bold text-sm mt-0.5 ${viewingProject.type === "PRODUCT" ? "text-amber-700" : "text-slate-900"}`}>
+                    {formatINR(viewingProject.budget)}
+                  </p>
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase text-slate-400 font-semibold">Billing Type</span>
+                  <span className="text-[10px] uppercase text-slate-400 font-semibold">
+                    {viewingProject.type === "PRODUCT" ? "Financial Nature" : "Billing Type"}
+                  </span>
                   <p className="font-medium text-slate-800 mt-0.5">
-                    {viewingProject.billingType === "SUBSCRIPTION" ? "Subscription" : "Fixed Milestone"}
+                    {viewingProject.type === "PRODUCT"
+                      ? "Internal R&D Outlay (Non-Billable)"
+                      : viewingProject.billingType === "SUBSCRIPTION"
+                      ? "Subscription Contract"
+                      : "Fixed Milestone (Revenue)"}
                   </p>
                 </div>
                 <div>
                   <span className="text-[10px] uppercase text-slate-400 font-semibold">Lifecycle Status</span>
                   <p className="font-medium text-emerald-700 mt-0.5">{viewingProject.status}</p>
                 </div>
+
+                {viewingProject.type === "PRODUCT" && (
+                  <div className="sm:col-span-3 bg-amber-50/80 border border-amber-200 rounded-lg p-2.5 text-[11px] text-amber-900 flex items-start gap-2">
+                    <Flame className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                    <p>
+                      <strong>Proprietary Product Initiative:</strong> All funds allocated represent company self-funded engineering and infrastructure expenditure. This initiative does not produce client accounts receivable or billable invoices.
+                    </p>
+                  </div>
+                )}
                 <div className="sm:col-span-3 border-t border-slate-200/60 pt-2">
                   <span className="text-[10px] uppercase text-slate-400 font-semibold">Delivery Timeline</span>
                   <p className="font-medium text-slate-800 mt-0.5">
@@ -1009,42 +1088,69 @@ export default function ProjectsPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Budget (INR ₹)</label>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    {formData.type === "PRODUCT"
+                      ? "R&D Capital Allocated (Internal Expense ₹)"
+                      : "Contracted Budget (INR ₹)"}
+                  </label>
                   <input
                     type="number"
+                    step="any"
+                    min="0"
                     value={formData.budget}
                     onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
-                    placeholder="e.g. 50000"
+                    placeholder="0"
                     className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                   />
+                  {formData.type === "PRODUCT" && (
+                    <span className="text-[10px] text-amber-600 mt-0.5 block">
+                      Internal expenditure allocated from company reserves. Non-billable.
+                    </span>
+                  )}
                 </div>
-                {/* Requirement 14: Removed HOURLY billing option, keeping FIXED and SUBSCRIPTION */}
+
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Billing Type</label>
-                  <select
-                    value={formData.billingType}
-                    onChange={(e) => setFormData({ ...formData, billingType: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  >
-                    <option value="FIXED">Fixed Milestone</option>
-                    <option value="SUBSCRIPTION">Subscription / Retainer</option>
-                  </select>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    {formData.type === "PRODUCT" ? "Billing Structure" : "Billing Type"}
+                  </label>
+                  {formData.type === "PRODUCT" ? (
+                    <div className="p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold flex items-center gap-1.5">
+                      <Flame className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Non-Billable Internal R&D Outlay</span>
+                    </div>
+                  ) : (
+                    <select
+                      value={formData.billingType}
+                      onChange={(e) => setFormData({ ...formData, billingType: e.target.value })}
+                      className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    >
+                      <option value="FIXED">Fixed Milestone</option>
+                      <option value="SUBSCRIPTION">Subscription / Retainer</option>
+                    </select>
+                  )}
                 </div>
               </div>
 
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Client Affiliation</label>
-                <select
-                  value={formData.clientId}
-                  onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
-                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                >
-                  <option value="">No Client (Internal Project)</option>
-                  {clients.map((c) => (
-                    <option key={c.id} value={c.id}>{c.company}</option>
-                  ))}
-                </select>
-              </div>
+              {formData.type === "SERVICE" ? (
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Client Affiliation</label>
+                  <select
+                    value={formData.clientId}
+                    onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
+                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  >
+                    <option value="">No Client (Select Contracted Client)</option>
+                    {clients.map((c) => (
+                      <option key={c.id} value={c.id}>{c.company}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 flex items-center gap-2 text-xs text-slate-600">
+                  <Box className="w-4 h-4 text-indigo-500 shrink-0" />
+                  <span>Client Affiliation: <strong>No Client (In-House Proprietary Platform)</strong></span>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>

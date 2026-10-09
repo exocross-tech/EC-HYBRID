@@ -93,6 +93,7 @@ model Task {
 
   assignedToId String?
   assignedTo   User?     @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
+  assignees    String?   // JSON list of co-assignees [{ id, name, email, department }]
 
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
