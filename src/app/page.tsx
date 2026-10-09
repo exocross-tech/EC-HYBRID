@@ -149,7 +149,7 @@ export default function DashboardPage() {
               {user.role} Operational Telemetry
             </h3>
             <button
-              onClick={loadStats}
+              onClick={() => { loadStats(false); }}
               className="inline-flex items-center gap-1 text-[11px] text-slate-500 hover:text-indigo-600 font-medium transition-colors"
             >
               <RefreshCw className="w-3 h-3" />
@@ -380,7 +380,7 @@ export default function DashboardPage() {
               Executive Telemetry & Graphical Analytics
             </h3>
             <button
-              onClick={loadStats}
+              onClick={() => { loadStats(false); }}
               className="inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-2xs transition-colors"
             >
               <RefreshCw className="w-3.5 h-3.5 text-indigo-600" />
