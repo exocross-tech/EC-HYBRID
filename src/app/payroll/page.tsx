@@ -35,6 +35,8 @@ interface Payslip {
   allowances: number;
   deductions: number;
   netSalary: number;
+  payoutType?: string;
+  notes?: string | null;
   paymentStatus: string;
   generatedAt: string;
   salary: {
@@ -195,6 +197,7 @@ export default function PayrollPage() {
           userId: milestoneUserId,
           customAmount: amt,
           isMilestonePayout: true,
+          notes: milestoneNote.trim() || undefined,
           paymentStatus: "PAID",
           month: new Date().getMonth() + 1,
           year: new Date().getFullYear(),
@@ -329,6 +332,8 @@ export default function PayrollPage() {
       allowances: slip.allowances,
       deductions: slip.deductions,
       netSalary: slip.netSalary,
+      payoutType: slip.payoutType,
+      notes: slip.notes,
       paymentStatus: slip.paymentStatus,
       generatedAt: slip.generatedAt,
       employee: {
@@ -361,6 +366,11 @@ export default function PayrollPage() {
   const totalMonthlyPayroll = salaries.reduce((acc, s) => acc + s.netSalary, 0);
   const avgSalary = salaries.length > 0 ? Math.round(totalMonthlyPayroll / salaries.length) : 0;
   const currentMonthSlipsCount = payslips.filter((p) => p.month === (new Date().getMonth() + 1) && p.year === new Date().getFullYear()).length;
+  const isSelectedMilestone = Boolean(
+    selectedPayslip &&
+      (selectedPayslip.payoutType === "MILESTONE" ||
+        (selectedPayslip.basicPay === 0 && selectedPayslip.deductions === 0))
+  );
 
   return (
     <AppLayout
@@ -633,6 +643,7 @@ export default function PayrollPage() {
                   ) : (
                     filteredPayslips.map((slip) => {
                       const monthName = MONTH_NAMES[(slip.month - 1) % 12];
+                      const isMilestone = slip.payoutType === "MILESTONE" || (slip.basicPay === 0 && slip.deductions === 0);
                       return (
                         <tr key={slip.id} className="hover:bg-slate-50/70 transition-colors">
                           <td className="py-3 px-4 font-semibold text-slate-900 whitespace-nowrap">
@@ -641,6 +652,11 @@ export default function PayrollPage() {
                               <span>
                                 {monthName} {slip.year}
                               </span>
+                              {isMilestone && (
+                                <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded text-[9px] font-bold">
+                                  Milestone
+                                </span>
+                              )}
                             </div>
                           </td>
 
@@ -660,15 +676,15 @@ export default function PayrollPage() {
                           )}
 
                           <td className="py-3 px-4 text-right font-medium text-slate-700 whitespace-nowrap">
-                            {formatINR(slip.basicPay, true)}
+                            {isMilestone ? "—" : formatINR(slip.basicPay, true)}
                           </td>
 
                           <td className="py-3 px-4 text-right font-medium text-emerald-600 whitespace-nowrap">
-                            +{formatINR(slip.allowances, true)}
+                            {isMilestone ? "—" : `+${formatINR(slip.allowances, true)}`}
                           </td>
 
                           <td className="py-3 px-4 text-right font-medium text-rose-600 whitespace-nowrap">
-                            -{formatINR(slip.deductions, true)}
+                            {isMilestone ? "—" : `-${formatINR(slip.deductions, true)}`}
                           </td>
 
                           <td className="py-3 px-4 text-right font-bold text-indigo-700 whitespace-nowrap">
@@ -916,134 +932,160 @@ export default function PayrollPage() {
 
       {/* VIEW PAYSLIP DETAIL MODAL */}
       {selectedPayslip && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full max-h-[90dvh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full max-h-[92dvh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
             {/* Modal Header */}
             <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between shrink-0">
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs uppercase tracking-wider text-indigo-400 font-bold">EC HYBRID</span>
-                  <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-400/30">
-                    Official Payslip
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full border ${
+                    isSelectedMilestone
+                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/30"
+                      : "bg-indigo-500/20 text-indigo-300 border-indigo-400/30"
+                  }`}>
+                    {isSelectedMilestone ? "Milestone Payout Payslip" : "Official Payslip"}
                   </span>
                 </div>
                 <h3 className="text-sm sm:text-base font-bold mt-1">
-                  {MONTH_NAMES[selectedPayslip.month - 1]} {selectedPayslip.year} Salary Slip
+                  {MONTH_NAMES[selectedPayslip.month - 1]} {selectedPayslip.year} {isSelectedMilestone ? "Milestone Payout" : "Salary Slip"}
                 </h3>
               </div>
-              <button
-                onClick={() => setSelectedPayslip(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+                  <button
+                    onClick={() => setSelectedPayslip(null)}
+                    className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Modal Content */}
+                <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 text-xs overflow-y-auto flex-1">
+                  {/* Employee Info Header */}
+                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-600">
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase font-semibold">Employee</span>
+                      <p className="font-bold text-slate-900">{selectedPayslip.salary.user.name}</p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase font-semibold">Department</span>
+                      <p className="font-bold text-slate-900">{selectedPayslip.salary.user.department || "General"}</p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase font-semibold">Designation</span>
+                      <p className="font-medium text-slate-800">{selectedPayslip.salary.user.designation || "Staff"}</p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase font-semibold">
+                        {isSelectedMilestone ? "Payout Type" : "Payment Status"}
+                      </span>
+                      <p className="font-bold text-emerald-600">
+                        {isSelectedMilestone ? "Project Milestone (Bank Transfer)" : `${selectedPayslip.paymentStatus} (Bank Transfer)`}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* If Milestone: No artificial breakdown tables. Show Milestone Notes & Memo */}
+                  {isSelectedMilestone ? (
+                    <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-1.5">
+                      <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 text-indigo-600" />
+                        Disbursement Notes & Milestone Memo
+                      </span>
+                      <p className="text-sm font-semibold text-slate-900 leading-relaxed">
+                        {selectedPayslip.notes && selectedPayslip.notes.trim()
+                          ? selectedPayslip.notes
+                          : "Discretionary project milestone payout disbursed upon deliverable completion."}
+                      </p>
+                      <p className="text-[10px] text-slate-400 pt-0.5">
+                        Disbursed on project milestone completion without standard monthly statutory breakdown.
+                      </p>
+                    </div>
+                  ) : (
+                    /* Standard Earnings & Deductions Tables */
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Earnings */}
+                      <div className="space-y-2">
+                        <h4 className="font-bold text-slate-900 border-b border-slate-200 pb-1 flex justify-between">
+                          <span>Earnings</span>
+                          <span>INR (₹)</span>
+                        </h4>
+                        <div className="flex justify-between py-1 text-slate-600">
+                          <span>Basic Salary</span>
+                          <span className="font-semibold text-slate-900">{formatINR(selectedPayslip.basicPay, true)}</span>
+                        </div>
+                        <div className="flex justify-between py-1 text-slate-600">
+                          <span>House Rent Allowance</span>
+                          <span className="font-semibold text-slate-900">
+                            {formatINR(Math.round(selectedPayslip.allowances * 0.5), true)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between py-1 text-slate-600">
+                          <span>Special Allowance</span>
+                          <span className="font-semibold text-slate-900">
+                            {formatINR(Math.round(selectedPayslip.allowances * 0.5), true)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between pt-2 border-t border-slate-200 font-bold text-slate-900">
+                          <span>Gross Earnings</span>
+                          <span className="text-emerald-700">
+                            {formatINR(selectedPayslip.basicPay + selectedPayslip.allowances, true)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Deductions */}
+                      <div className="space-y-2">
+                        <h4 className="font-bold text-slate-900 border-b border-slate-200 pb-1 flex justify-between">
+                          <span>Deductions</span>
+                          <span>INR (₹)</span>
+                        </h4>
+                        <div className="flex justify-between py-1 text-slate-600">
+                          <span>Provident Fund (EPF)</span>
+                          <span className="font-semibold text-rose-600">
+                            -{formatINR(Math.round(selectedPayslip.deductions * 0.5), true)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between py-1 text-slate-600">
+                          <span>Income Tax (TDS)</span>
+                          <span className="font-semibold text-rose-600">
+                            -{formatINR(Math.round(selectedPayslip.deductions * 0.4), true)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between py-1 text-slate-600">
+                          <span>Professional Tax (PT)</span>
+                          <span className="font-semibold text-rose-600">
+                            -{formatINR(Math.round(selectedPayslip.deductions * 0.1), true)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between pt-2 border-t border-slate-200 font-bold text-slate-900">
+                          <span>Total Deductions</span>
+                          <span className="text-rose-700">-{formatINR(selectedPayslip.deductions, true)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Net Take-Home Highlight */}
+                  <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex items-center justify-between">
+                    <div>
+                      <span className="text-[11px] text-indigo-700 font-bold uppercase tracking-wider">
+                        {isSelectedMilestone ? "Net Take-Home Milestone Pay" : "Net Take-Home Salary"}
+                      </span>
+                      <p className="text-xl font-black text-indigo-950 mt-0.5">{formatINR(selectedPayslip.netSalary, true)}</p>
+                    </div>
+                    <button
+                      onClick={() => handleDownloadPDF(selectedPayslip)}
+                      className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Download PDF</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
-
-            {/* Modal Content */}
-            <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 text-xs overflow-y-auto flex-1">
-              {/* Employee Info Header */}
-              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-600">
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Employee</span>
-                  <p className="font-bold text-slate-900">{selectedPayslip.salary.user.name}</p>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Department</span>
-                  <p className="font-bold text-slate-900">{selectedPayslip.salary.user.department || "General"}</p>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Designation</span>
-                  <p className="font-medium text-slate-800">{selectedPayslip.salary.user.designation || "Staff"}</p>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Payment Status</span>
-                  <p className="font-bold text-emerald-600">{selectedPayslip.paymentStatus} (Bank Transfer)</p>
-                </div>
-              </div>
-
-              {/* Earnings & Deductions Tables */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Earnings */}
-                <div className="space-y-2">
-                  <h4 className="font-bold text-slate-900 border-b border-slate-200 pb-1 flex justify-between">
-                    <span>Earnings</span>
-                    <span>INR (₹)</span>
-                  </h4>
-                  <div className="flex justify-between py-1 text-slate-600">
-                    <span>Basic Salary</span>
-                    <span className="font-semibold text-slate-900">{formatINR(selectedPayslip.basicPay, true)}</span>
-                  </div>
-                  <div className="flex justify-between py-1 text-slate-600">
-                    <span>House Rent Allowance</span>
-                    <span className="font-semibold text-slate-900">
-                      {formatINR(Math.round(selectedPayslip.allowances * 0.5), true)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-1 text-slate-600">
-                    <span>Special Allowance</span>
-                    <span className="font-semibold text-slate-900">
-                      {formatINR(Math.round(selectedPayslip.allowances * 0.5), true)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between pt-2 border-t border-slate-200 font-bold text-slate-900">
-                    <span>Gross Earnings</span>
-                    <span className="text-emerald-700">
-                      {formatINR(selectedPayslip.basicPay + selectedPayslip.allowances, true)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Deductions */}
-                <div className="space-y-2">
-                  <h4 className="font-bold text-slate-900 border-b border-slate-200 pb-1 flex justify-between">
-                    <span>Deductions</span>
-                    <span>INR (₹)</span>
-                  </h4>
-                  <div className="flex justify-between py-1 text-slate-600">
-                    <span>Provident Fund (EPF)</span>
-                    <span className="font-semibold text-rose-600">
-                      -{formatINR(Math.round(selectedPayslip.deductions * 0.5), true)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-1 text-slate-600">
-                    <span>Income Tax (TDS)</span>
-                    <span className="font-semibold text-rose-600">
-                      -{formatINR(Math.round(selectedPayslip.deductions * 0.4), true)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-1 text-slate-600">
-                    <span>Professional Tax (PT)</span>
-                    <span className="font-semibold text-rose-600">
-                      -{formatINR(Math.round(selectedPayslip.deductions * 0.1), true)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between pt-2 border-t border-slate-200 font-bold text-slate-900">
-                    <span>Total Deductions</span>
-                    <span className="text-rose-700">-{formatINR(selectedPayslip.deductions, true)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Net Take-Home Highlight */}
-              <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex items-center justify-between">
-                <div>
-                  <span className="text-[11px] text-indigo-700 font-bold uppercase tracking-wider">
-                    Net Take-Home Salary
-                  </span>
-                  <p className="text-xl font-black text-indigo-950 mt-0.5">{formatINR(selectedPayslip.netSalary, true)}</p>
-                </div>
-                <button
-                  onClick={() => handleDownloadPDF(selectedPayslip)}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download PDF</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+          )}
 
       {/* EDIT SALARY STRUCTURE MODAL */}
       {editingSalary && (

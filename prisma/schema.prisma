@@ -155,6 +155,8 @@ model Payslip {
   allowances    Float
   deductions    Float
   netSalary     Float
+  payoutType    String    @default("SALARY") // SALARY, MILESTONE
+  notes         String?
   paymentStatus String    @default("PAID") // PENDING, PAID
   generatedAt   DateTime  @default(now())
 

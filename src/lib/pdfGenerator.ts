@@ -16,6 +16,8 @@ export interface PayslipPDFData {
   allowances: number;
   deductions: number;
   netSalary: number;
+  payoutType?: string;
+  notes?: string | null;
   paymentStatus: string;
   generatedAt?: string | Date;
   employee: {
@@ -126,11 +128,17 @@ export function downloadPayslipPDF(data: PayslipPDFData) {
   doc.text("Private & Confidential - Payroll & Compensation Services", margin, 25);
 
   // Payslip Tag on Top Right
+  const isMilestone = data.payoutType === "MILESTONE" || (data.basicPay === 0 && data.deductions === 0);
   const monthName = MONTH_NAMES[(data.month - 1) % 12] || "Month";
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(255, 255, 255);
-  doc.text(`SALARY SLIP - ${monthName.toUpperCase()} ${data.year}`, pageWidth - margin, 14, { align: "right" });
+  doc.text(
+    isMilestone ? `MILESTONE PAYSLIP - ${monthName.toUpperCase()} ${data.year}` : `SALARY SLIP - ${monthName.toUpperCase()} ${data.year}`,
+    pageWidth - margin,
+    14,
+    { align: "right" }
+  );
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
@@ -189,10 +197,14 @@ export function downloadPayslipPDF(data: PayslipPDFData) {
   // Row 3
   doc.setFont("helvetica", "normal");
   doc.setTextColor(100, 116, 139);
-  doc.text("Pay Period:", col1X, y + 27);
+  doc.text(isMilestone ? "Compensation:" : "Pay Period:", col1X, y + 27);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(15, 23, 42);
-  doc.text(`${monthName} 1 - ${monthName} 30, ${data.year}`, col1X + 30, y + 27);
+  doc.text(
+    isMilestone ? "Project Milestone Disbursement" : `${monthName} 1 - ${monthName} 30, ${data.year}`,
+    col1X + 30,
+    y + 27
+  );
 
   doc.setFont("helvetica", "normal");
   doc.setTextColor(100, 116, 139);
@@ -203,119 +215,180 @@ export function downloadPayslipPDF(data: PayslipPDFData) {
 
   y += 42;
 
-  // Earnings & Deductions Tables (Side-by-Side)
-  const colWidth = (contentWidth - 6) / 2;
-  const colRightX = margin + colWidth + 6;
+  if (isMilestone) {
+    // NET TAKE-HOME HIGHLIGHT BOX
+    doc.setFillColor(238, 242, 255); // indigo-50
+    doc.setDrawColor(99, 102, 241); // indigo-500
+    doc.setLineWidth(0.6);
+    doc.roundedRect(margin, y, contentWidth, 26, 2, 2, "FD");
 
-  // EARNINGS HEADER
-  doc.setFillColor(37, 99, 235); // electric blue
-  doc.roundedRect(margin, y, colWidth, 7, 1.5, 1.5, "F");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.setTextColor(255, 255, 255);
-  doc.text("EARNINGS BREAKDOWN", margin + 4, y + 4.8);
-  doc.text("AMOUNT (INR)", margin + colWidth - 4, y + 4.8, { align: "right" });
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(79, 70, 229); // indigo-600
+    doc.text("NET TAKE-HOME SALARY (MILESTONE PAY)", margin + 6, y + 8);
 
-  // DEDUCTIONS HEADER
-  doc.setFillColor(225, 29, 72); // rose-600
-  doc.roundedRect(colRightX, y, colWidth, 7, 1.5, 1.5, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.text("DEDUCTIONS & TAX", colRightX + 4, y + 4.8);
-  doc.text("AMOUNT (INR)", colRightX + colWidth - 4, y + 4.8, { align: "right" });
+    doc.setFontSize(16);
+    doc.setTextColor(15, 23, 42); // slate-900
+    doc.text(formatCurrencyINR(data.netSalary), margin + 6, y + 19);
 
-  y += 7;
+    // Amount in words
+    const words = numberToWordsINR(data.netSalary);
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(7.5);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`In Words: ${words}`, pageWidth - margin - 6, y + 19, { align: "right" });
 
-  // EARNINGS ITEMS
-  const earningsItems = [
-    { label: "Basic Salary", val: data.basicPay },
-    { label: "House Rent Allowance (HRA)", val: Math.round(data.allowances * 0.5) },
-    { label: "Special & Travel Allowance", val: Math.round(data.allowances * 0.3) },
-    { label: "Performance & Other Allowances", val: Math.round(data.allowances * 0.2) },
-  ];
+    y += 34;
 
-  // DEDUCTIONS ITEMS
-  const deductionsItems = [
-    { label: "Provident Fund (EPF)", val: Math.round(data.deductions * 0.5) },
-    { label: "Income Tax (TDS)", val: Math.round(data.deductions * 0.4) },
-    { label: "Professional Tax (PT)", val: Math.round(data.deductions * 0.1) },
-    { label: "Other Statutory Deductions", val: 0 },
-  ];
+    // MILESTONE NOTES & MEMO BOX
+    const noteText = data.notes && data.notes.trim()
+      ? data.notes.trim()
+      : "Discretionary project milestone payout disbursed upon deliverable completion.";
 
-  const totalEarnings = data.basicPay + data.allowances;
-  const totalDeductions = data.deductions;
+    doc.setFillColor(248, 250, 252); // slate-50
+    doc.setDrawColor(203, 213, 225); // slate-300
+    doc.setLineWidth(0.4);
+    doc.roundedRect(margin, y, contentWidth, 48, 2, 2, "FD");
 
-  let currentY = y;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
+    // Banner inside notes box
+    doc.setFillColor(241, 245, 249); // slate-100
+    doc.roundedRect(margin, y, contentWidth, 9, 2, 2, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(30, 41, 59); // slate-800
+    doc.text("PROJECT MILESTONE & DELIVERABLE NOTES", margin + 6, y + 6);
 
-  for (let i = 0; i < earningsItems.length; i++) {
-    currentY += 6.5;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(30, 41, 59); // slate-800
+    const splitNotes = doc.splitTextToSize(noteText, contentWidth - 12);
+    doc.text(splitNotes, margin + 6, y + 16);
 
-    // Alternating rows bg
-    if (i % 2 === 1) {
-      doc.setFillColor(248, 250, 252);
-      doc.rect(margin, currentY - 5, colWidth, 6.5, "F");
-      doc.rect(colRightX, currentY - 5, colWidth, 6.5, "F");
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(7.5);
+    doc.setTextColor(100, 116, 139);
+    doc.text(
+      "Notice: Discretionary project milestone disbursement. Standard monthly statutory breakdowns are not applicable.",
+      margin + 6,
+      y + 42
+    );
+
+    y += 56;
+  } else {
+    // Standard Monthly Salary Earnings & Deductions Tables (Side-by-Side)
+    const colWidth = (contentWidth - 6) / 2;
+    const colRightX = margin + colWidth + 6;
+
+    // EARNINGS HEADER
+    doc.setFillColor(37, 99, 235); // electric blue
+    doc.roundedRect(margin, y, colWidth, 7, 1.5, 1.5, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(255, 255, 255);
+    doc.text("EARNINGS BREAKDOWN", margin + 4, y + 4.8);
+    doc.text("AMOUNT (INR)", margin + colWidth - 4, y + 4.8, { align: "right" });
+
+    // DEDUCTIONS HEADER
+    doc.setFillColor(225, 29, 72); // rose-600
+    doc.roundedRect(colRightX, y, colWidth, 7, 1.5, 1.5, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.text("DEDUCTIONS & TAX", colRightX + 4, y + 4.8);
+    doc.text("AMOUNT (INR)", colRightX + colWidth - 4, y + 4.8, { align: "right" });
+
+    y += 7;
+
+    // EARNINGS ITEMS
+    const earningsItems = [
+      { label: "Basic Salary", val: data.basicPay },
+      { label: "House Rent Allowance (HRA)", val: Math.round(data.allowances * 0.5) },
+      { label: "Special & Travel Allowance", val: Math.round(data.allowances * 0.3) },
+      { label: "Performance & Other Allowances", val: Math.round(data.allowances * 0.2) },
+    ];
+
+    // DEDUCTIONS ITEMS
+    const deductionsItems = [
+      { label: "Provident Fund (EPF)", val: Math.round(data.deductions * 0.5) },
+      { label: "Income Tax (TDS)", val: Math.round(data.deductions * 0.4) },
+      { label: "Professional Tax (PT)", val: Math.round(data.deductions * 0.1) },
+      { label: "Other Statutory Deductions", val: 0 },
+    ];
+
+    const totalEarnings = data.basicPay + data.allowances;
+    const totalDeductions = data.deductions;
+
+    let currentY = y;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+
+    for (let i = 0; i < earningsItems.length; i++) {
+      currentY += 6.5;
+
+      // Alternating rows bg
+      if (i % 2 === 1) {
+        doc.setFillColor(248, 250, 252);
+        doc.rect(margin, currentY - 5, colWidth, 6.5, "F");
+        doc.rect(colRightX, currentY - 5, colWidth, 6.5, "F");
+      }
+
+      // Earnings row
+      doc.setTextColor(51, 65, 85);
+      doc.text(earningsItems[i].label, margin + 4, currentY - 0.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text(formatCurrencyINR(earningsItems[i].val), margin + colWidth - 4, currentY - 0.5, { align: "right" });
+
+      // Deductions row
+      doc.setTextColor(51, 65, 85);
+      doc.text(deductionsItems[i].label, colRightX + 4, currentY - 0.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text(formatCurrencyINR(deductionsItems[i].val), colRightX + colWidth - 4, currentY - 0.5, { align: "right" });
     }
 
-    // Earnings row
-    doc.setTextColor(51, 65, 85);
-    doc.text(earningsItems[i].label, margin + 4, currentY - 0.5);
-    doc.setTextColor(15, 23, 42);
-    doc.text(formatCurrencyINR(earningsItems[i].val), margin + colWidth - 4, currentY - 0.5, { align: "right" });
+    currentY += 4;
+    // Border below table body
+    doc.setDrawColor(226, 232, 240);
+    doc.line(margin, currentY, margin + colWidth, currentY);
+    doc.line(colRightX, currentY, colRightX + colWidth, currentY);
 
-    // Deductions row
-    doc.setTextColor(51, 65, 85);
-    doc.text(deductionsItems[i].label, colRightX + 4, currentY - 0.5);
-    doc.setTextColor(15, 23, 42);
-    doc.text(formatCurrencyINR(deductionsItems[i].val), colRightX + colWidth - 4, currentY - 0.5, { align: "right" });
+    currentY += 6;
+    // Total Earnings
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 41, 59);
+    doc.text("Total Gross Earnings", margin + 4, currentY);
+    doc.setTextColor(37, 99, 235);
+    doc.text(formatCurrencyINR(totalEarnings), margin + colWidth - 4, currentY, { align: "right" });
+
+    // Total Deductions
+    doc.setTextColor(30, 41, 59);
+    doc.text("Total Deductions", colRightX + 4, currentY);
+    doc.setTextColor(225, 29, 72);
+    doc.text(formatCurrencyINR(totalDeductions), colRightX + colWidth - 4, currentY, { align: "right" });
+
+    y = currentY + 12;
+
+    // NET SALARY HIGHLIGHT BOX
+    doc.setFillColor(238, 242, 255); // indigo-50
+    doc.setDrawColor(99, 102, 241); // indigo-500
+    doc.setLineWidth(0.6);
+    doc.roundedRect(margin, y, contentWidth, 24, 2, 2, "FD");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(79, 70, 229); // indigo-600
+    doc.text("NET SALARY PAYABLE (TAKE HOME)", margin + 6, y + 7);
+
+    doc.setFontSize(16);
+    doc.setTextColor(15, 23, 42); // slate-900
+    doc.text(formatCurrencyINR(data.netSalary), margin + 6, y + 17);
+
+    // Amount in words
+    const words = numberToWordsINR(data.netSalary);
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(7.5);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`In Words: ${words}`, pageWidth - margin - 6, y + 17, { align: "right" });
+
+    y += 34;
   }
-
-  currentY += 4;
-  // Border below table body
-  doc.setDrawColor(226, 232, 240);
-  doc.line(margin, currentY, margin + colWidth, currentY);
-  doc.line(colRightX, currentY, colRightX + colWidth, currentY);
-
-  currentY += 6;
-  // Total Earnings
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(30, 41, 59);
-  doc.text("Total Gross Earnings", margin + 4, currentY);
-  doc.setTextColor(37, 99, 235);
-  doc.text(formatCurrencyINR(totalEarnings), margin + colWidth - 4, currentY, { align: "right" });
-
-  // Total Deductions
-  doc.setTextColor(30, 41, 59);
-  doc.text("Total Deductions", colRightX + 4, currentY);
-  doc.setTextColor(225, 29, 72);
-  doc.text(formatCurrencyINR(totalDeductions), colRightX + colWidth - 4, currentY, { align: "right" });
-
-  y = currentY + 12;
-
-  // NET SALARY HIGHLIGHT BOX
-  doc.setFillColor(238, 242, 255); // indigo-50
-  doc.setDrawColor(99, 102, 241); // indigo-500
-  doc.setLineWidth(0.6);
-  doc.roundedRect(margin, y, contentWidth, 24, 2, 2, "FD");
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.setTextColor(79, 70, 229); // indigo-600
-  doc.text("NET SALARY PAYABLE (TAKE HOME)", margin + 6, y + 7);
-
-  doc.setFontSize(16);
-  doc.setTextColor(15, 23, 42); // slate-900
-  doc.text(formatCurrencyINR(data.netSalary), margin + 6, y + 17);
-
-  // Amount in words
-  const words = numberToWordsINR(data.netSalary);
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text(`In Words: ${words}`, pageWidth - margin - 6, y + 17, { align: "right" });
-
-  y += 34;
 
   // Verification & Signatures section
   doc.setFillColor(248, 250, 252);
