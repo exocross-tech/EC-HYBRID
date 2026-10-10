@@ -48,9 +48,10 @@ model Client {
   createdById String?
   createdBy   User?     @relation("ClientCreatedBy", fields: [createdById], references: [id])
 
-  projects    Project[]
-  orders      Order[]
-  invoices    Invoice[]
+  projects        Project[]
+  orders          Order[]
+  invoices        Invoice[]
+  productLicenses ProductLicense[]
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -71,9 +72,10 @@ model Project {
   clientId       String?
   client         Client?         @relation(fields: [clientId], references: [id])
 
-  tasks          Task[]
-  calendarEvents CalendarEvent[]
-  invoices       Invoice[]
+  tasks           Task[]
+  calendarEvents  CalendarEvent[]
+  invoices        Invoice[]
+  productLicenses ProductLicense[]
 
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -193,6 +195,37 @@ model Order {
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+}
+
+model ProductLicense {
+  id               String    @id @default(cuid())
+
+  clientId         String
+  client           Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  productId        String?
+  project          Project?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName      String
+
+  licenseKey       String    @unique
+  tier             String    @default("PRO") // STARTER, PRO, ENTERPRISE, CUSTOM
+  deploymentUrl    String?
+
+  billingModel     String    @default("SUBSCRIPTION") // ONE_TIME, SUBSCRIPTION
+  billingCycle     String    @default("ANNUAL") // ONE_OFF, MONTHLY, QUARTERLY, ANNUAL
+  price            Float
+
+  startDate        DateTime  @default(now())
+  renewalDate      DateTime?
+  lastRenewedAt    DateTime?
+
+  status           String    @default("ACTIVE") // ACTIVE, EXPIRING_SOON, EXPIRED, CANCELLED
+
+  notes            String?
+  invoiceNumber    String?
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 }
 
 model Invoice {

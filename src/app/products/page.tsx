@@ -33,10 +33,49 @@ import {
   Flame,
   Check,
   Copy,
+  ShoppingBag,
+  CreditCard,
+  Globe,
+  CalendarDays,
 } from "lucide-react";
 import { AssigneeAvatarCluster } from "@/components/AssigneeAvatarCluster";
 import { MultiAssigneeSelect } from "@/components/MultiAssigneeSelect";
 import { DateInput } from "@/components/DateInput";
+import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
+
+export interface ProductLicense {
+  id: string;
+  clientId: string;
+  productId?: string | null;
+  productName: string;
+  licenseKey: string;
+  tier: string;
+  deploymentUrl?: string | null;
+  billingModel: "ONE_TIME" | "SUBSCRIPTION";
+  billingCycle: "ONE_OFF" | "MONTHLY" | "QUARTERLY" | "ANNUAL";
+  price: number;
+  startDate: string;
+  renewalDate?: string | null;
+  lastRenewedAt?: string | null;
+  status: string;
+  liveStatus: string;
+  daysRemaining?: number | null;
+  notes?: string | null;
+  invoiceNumber?: string | null;
+  client: {
+    id: string;
+    name: string;
+    company: string;
+    email?: string | null;
+    phone?: string | null;
+  };
+  project?: {
+    id: string;
+    name: string;
+    type: string;
+    status: string;
+  } | null;
+}
 
 interface ProductTask {
   id: string;
@@ -131,6 +170,36 @@ export default function ProductsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copiedVault, setCopiedVault] = useState(false);
 
+  // Commercial Deployments & Subscriptions state
+  const [licenses, setLicenses] = useState<ProductLicense[]>([]);
+  const [licenseMetrics, setLicenseMetrics] = useState({
+    totalDeployments: 0,
+    activeSubscriptions: 0,
+    mrr: 0,
+    arr: 0,
+    renewalsDueSoon: 0,
+  });
+  const [clientsList, setClientsList] = useState<any[]>([]);
+  const [viewingDeploymentsProduct, setViewingDeploymentsProduct] = useState<Product | null>(null);
+  const [showDeployModal, setShowDeployModal] = useState(false);
+  const [deployFormData, setDeployFormData] = useState({
+    clientId: "",
+    productId: "",
+    productName: "",
+    tier: "PRO",
+    billingModel: "SUBSCRIPTION",
+    billingCycle: "ANNUAL",
+    price: 50000,
+    startDate: toInputDateFormat(new Date()),
+    deploymentUrl: "",
+    notes: "",
+    autoInvoice: true,
+  });
+  const [isSubmittingDeploy, setIsSubmittingDeploy] = useState(false);
+  const [confirmDeleteLicense, setConfirmDeleteLicense] = useState<ProductLicense | null>(null);
+  const [isDeletingLicense, setIsDeletingLicense] = useState(false);
+  const [renewingLicenseId, setRenewingLicenseId] = useState<string | null>(null);
+
   // Quick Sprint Task form state (inside Roadmap modal)
   const [showAddTaskForm, setShowAddTaskForm] = useState(false);
   const [newTaskData, setNewTaskData] = useState({
@@ -209,9 +278,132 @@ export default function ProductsPage() {
     }
   };
 
+  const fetchLicenses = async () => {
+    try {
+      const res = await fetch("/api/licenses");
+      if (res.ok) {
+        const data = await res.json();
+        setLicenses(data.licenses || []);
+        if (data.metrics) setLicenseMetrics(data.metrics);
+      }
+    } catch (e) {
+      console.error("Failed to load licenses", e);
+    }
+  };
+
+  const fetchClients = async () => {
+    try {
+      const res = await fetch("/api/clients");
+      if (res.ok) {
+        const data = await res.json();
+        setClientsList(data.clients || []);
+      }
+    } catch (e) {
+      console.error("Failed to load clients", e);
+    }
+  };
+
   useEffect(() => {
     fetchProducts();
+    fetchLicenses();
+    fetchClients();
   }, [search, statusFilter]);
+
+  // Open Deploy to Client Modal
+  const handleOpenDeployModal = (product?: Product) => {
+    const targetProdId = product ? product.id : (products[0]?.id || "");
+    const targetProdName = product ? product.name : (products[0]?.name || "");
+    setDeployFormData({
+      clientId: clientsList[0]?.id || "",
+      productId: targetProdId,
+      productName: targetProdName,
+      tier: "PRO",
+      billingModel: "SUBSCRIPTION",
+      billingCycle: "ANNUAL",
+      price: 50000,
+      startDate: toInputDateFormat(new Date()),
+      deploymentUrl: "",
+      notes: "",
+      autoInvoice: true,
+    });
+    setShowDeployModal(true);
+  };
+
+  // Submit Deploy Product License
+  const handleDeploySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deployFormData.clientId || isSubmittingDeploy) return;
+    setIsSubmittingDeploy(true);
+    setActionError(null);
+    try {
+      const selectedProd = products.find((p) => p.id === deployFormData.productId);
+      const res = await fetch("/api/licenses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...deployFormData,
+          productName: selectedProd?.name || deployFormData.productName,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setActionSuccess(`Product deployed to ${data.license.client.company}! License Key: ${data.license.licenseKey}`);
+        setShowDeployModal(false);
+        fetchLicenses();
+      } else {
+        setActionError(data.error || "Failed to deploy product");
+      }
+    } catch (err: any) {
+      setActionError(err.message || "Network error");
+    } finally {
+      setIsSubmittingDeploy(false);
+    }
+  };
+
+  // Renew Subscription
+  const handleRenewLicense = async (license: ProductLicense) => {
+    setRenewingLicenseId(license.id);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/licenses/${license.id}/renew`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setActionSuccess(data.message || `Subscription renewed! Invoice ${data.invoice?.invoiceNumber} generated.`);
+        fetchLicenses();
+      } else {
+        setActionError(data.error || "Failed to renew subscription");
+      }
+    } catch (err: any) {
+      setActionError(err.message || "Network error");
+    } finally {
+      setRenewingLicenseId(null);
+    }
+  };
+
+  // Delete License
+  const handleDeleteLicenseConfirm = async () => {
+    if (!confirmDeleteLicense) return;
+    setIsDeletingLicense(true);
+    try {
+      const res = await fetch(`/api/licenses/${confirmDeleteLicense.id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setActionSuccess(`License ${confirmDeleteLicense.licenseKey} revoked and removed.`);
+        setConfirmDeleteLicense(null);
+        fetchLicenses();
+      } else {
+        const data = await res.json();
+        setActionError(data.error || "Failed to revoke license");
+      }
+    } catch (err: any) {
+      setActionError(err.message || "Network error");
+    } finally {
+      setIsDeletingLicense(false);
+    }
+  };
 
   // Form reset helpers
   const handleOpenAddModal = () => {
@@ -594,14 +786,68 @@ export default function ProductsPage() {
             </button>
 
             {canManageProducts && (
-              <button
-                onClick={handleOpenAddModal}
-                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm transition-all shadow-sm hover:shadow-indigo-500/20 active:scale-95"
-              >
-                <Plus className="w-4 h-4" />
-                <span>New In-House Product</span>
-              </button>
+              <>
+                <button
+                  onClick={() => handleOpenDeployModal()}
+                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm transition-all shadow-sm hover:shadow-emerald-500/20 active:scale-95 cursor-pointer"
+                  title="Deploy In-House Product to Client Organization"
+                >
+                  <ShoppingBag className="w-4 h-4" />
+                  <span>Deploy to Client</span>
+                </button>
+
+                <button
+                  onClick={handleOpenAddModal}
+                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm transition-all shadow-sm hover:shadow-indigo-500/20 active:scale-95"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>New In-House Product</span>
+                </button>
+              </>
             )}
+          </div>
+        </div>
+
+        {/* Commercial & Subscription Telemetry Bar */}
+        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-4 sm:p-5 text-white shadow-lg flex flex-col md:flex-row items-center justify-between gap-4 border border-indigo-900/40">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 text-emerald-400 flex items-center justify-center shrink-0">
+              <CreditCard className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold">Product Sales & Subscription Telemetry</h3>
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2 py-0.5 rounded-full font-bold">
+                  Live Radar
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 mt-0.5">
+                Client deployments, recurring SaaS retainers, and renewal horizon monitoring
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 sm:gap-6 w-full md:w-auto justify-between md:justify-end">
+            <div className="text-left md:text-right">
+              <span className="text-[10px] text-slate-400 uppercase font-semibold block">Deployments</span>
+              <span className="text-sm sm:text-base font-bold text-white">{licenseMetrics.totalDeployments} Clients</span>
+            </div>
+            <div className="text-left md:text-right border-l border-slate-800 pl-3 sm:pl-5">
+              <span className="text-[10px] text-slate-400 uppercase font-semibold block">Active SaaS</span>
+              <span className="text-sm sm:text-base font-bold text-emerald-400">{licenseMetrics.activeSubscriptions} Active</span>
+            </div>
+            <div className="text-left md:text-right border-l border-slate-800 pl-3 sm:pl-5">
+              <span className="text-[10px] text-slate-400 uppercase font-semibold block">MRR / ARR</span>
+              <span className="text-sm sm:text-base font-bold text-indigo-300">{formatINR(licenseMetrics.mrr)}/mo</span>
+            </div>
+            {licenseMetrics.renewalsDueSoon > 0 ? (
+              <div className="text-left md:text-right border-l border-slate-800 pl-3 sm:pl-5">
+                <span className="text-[10px] text-amber-400 uppercase font-bold block flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-amber-400" /> Renewals (30d)
+                </span>
+                <span className="text-sm sm:text-base font-bold text-amber-300">{licenseMetrics.renewalsDueSoon} Due Soon</span>
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -867,17 +1113,34 @@ export default function ProductsPage() {
                       {/* View Roadmap & Sprint Tasks */}
                       <button
                         onClick={() => setViewingRoadmapProduct(product)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs transition-colors cursor-pointer"
                         title="View Roadmap & Sprints"
                       >
                         <Eye className="w-3.5 h-3.5" />
                         <span>Roadmap ({totalTasks})</span>
                       </button>
 
+                      {/* Customer Deployments */}
+                      {(() => {
+                        const prodLicenses = licenses.filter(
+                          (l) => l.productId === product.id || l.productName.toLowerCase() === product.name.toLowerCase()
+                        );
+                        return (
+                          <button
+                            onClick={() => setViewingDeploymentsProduct(product)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-medium text-xs border border-emerald-200/60 transition-colors cursor-pointer"
+                            title="Client Deployments & Subscriptions"
+                          >
+                            <ShoppingBag className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Deployments ({prodLicenses.length})</span>
+                          </button>
+                        );
+                      })()}
+
                       {/* Technical Vault */}
                       <button
                         onClick={() => handleOpenVault(product)}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-700 font-medium text-xs border border-slate-200 transition-colors"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-700 font-medium text-xs border border-slate-200 transition-colors cursor-pointer"
                         title="Architecture & Secret Vault"
                       >
                         <Key className="w-3.5 h-3.5 text-amber-500" />
@@ -965,14 +1228,28 @@ export default function ProductsPage() {
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               onClick={() => setViewingRoadmapProduct(product)}
-                              className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
+                              className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors cursor-pointer"
                               title="View Roadmap & Tasks"
                             >
                               <Eye className="w-4 h-4" />
                             </button>
+                            {(() => {
+                              const prodLicenses = licenses.filter(
+                                (l) => l.productId === product.id || l.productName.toLowerCase() === product.name.toLowerCase()
+                              );
+                              return (
+                                <button
+                                  onClick={() => setViewingDeploymentsProduct(product)}
+                                  className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors cursor-pointer"
+                                  title={`Deployments & Subscriptions (${prodLicenses.length})`}
+                                >
+                                  <ShoppingBag className="w-4 h-4" />
+                                </button>
+                              );
+                            })()}
                             <button
                               onClick={() => handleOpenVault(product)}
-                              className="p-1.5 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors"
+                              className="p-1.5 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors cursor-pointer"
                               title="Product Vault"
                             >
                               <Key className="w-4 h-4" />
@@ -1671,6 +1948,432 @@ export default function ProductsPage() {
           </div>
         </div>
       )}
+
+      {/* MODAL 6: Customer Deployments & Subscriptions Drawer */}
+      {viewingDeploymentsProduct && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center font-bold">
+                  <ShoppingBag className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-slate-900">{viewingDeploymentsProduct.name}</h3>
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
+                      Client Deployments & Subscriptions
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Active client licenses, recurring SaaS retainers, and renewal monitoring
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleOpenDeployModal(viewingDeploymentsProduct)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs shadow-xs transition-colors cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Deploy to Client</span>
+                </button>
+                <button
+                  onClick={() => setViewingDeploymentsProduct(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto space-y-4 flex-1">
+              {(() => {
+                const productLicenses = licenses.filter(
+                  (l) =>
+                    l.productId === viewingDeploymentsProduct.id ||
+                    l.productName.toLowerCase() === viewingDeploymentsProduct.name.toLowerCase()
+                );
+
+                if (productLicenses.length === 0) {
+                  return (
+                    <div className="text-center py-12 px-4 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-3 border border-emerald-100">
+                        <ShoppingBag className="w-6 h-6" />
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-900 mb-1">No Active Deployments Yet</h4>
+                      <p className="text-xs text-slate-500 max-w-sm mx-auto mb-4">
+                        This in-house product has not been sold or deployed to any client organizations yet.
+                      </p>
+                      <button
+                        onClick={() => handleOpenDeployModal(viewingDeploymentsProduct)}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs shadow-xs transition-colors cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Deploy First Client License</span>
+                      </button>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs text-slate-600">
+                        <thead className="bg-slate-50 border-b border-slate-200 uppercase font-semibold text-[10px] text-slate-500 tracking-wider">
+                          <tr>
+                            <th className="py-3 px-4">Client Organization</th>
+                            <th className="py-3 px-4">License Key</th>
+                            <th className="py-3 px-4">Tier & Model</th>
+                            <th className="py-3 px-4 text-right">Fee (₹ INR)</th>
+                            <th className="py-3 px-4">Renewal Horizon</th>
+                            <th className="py-3 px-4 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 font-medium">
+                          {productLicenses.map((lic) => {
+                            const isSub = lic.billingModel === "SUBSCRIPTION";
+                            return (
+                              <tr key={lic.id} className="hover:bg-slate-50/60 transition-colors">
+                                <td className="py-3 px-4">
+                                  <div className="font-bold text-slate-900">{lic.client.company}</div>
+                                  <div className="text-[11px] text-slate-400">
+                                    Contact: {lic.client.name} &bull; {lic.client.email || lic.client.phone || "No direct email"}
+                                  </div>
+                                  {lic.deploymentUrl && (
+                                    <a
+                                      href={lic.deploymentUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="inline-flex items-center gap-1 text-[10px] text-indigo-600 hover:underline mt-0.5"
+                                    >
+                                      <Globe className="w-3 h-3" />
+                                      <span>{lic.deploymentUrl}</span>
+                                    </a>
+                                  )}
+                                </td>
+                                <td className="py-3 px-4 font-mono text-[11px] text-slate-800">
+                                  <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                    {lic.licenseKey}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-4">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded text-[10px] font-bold border border-indigo-200">
+                                      {lic.tier}
+                                    </span>
+                                    <span className="text-[11px] text-slate-600">
+                                      {isSub ? `${lic.billingCycle} SaaS` : "Perpetual License"}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="py-3 px-4 text-right font-bold text-slate-900 whitespace-nowrap">
+                                  {formatINR(lic.price)}
+                                  {isSub && (
+                                    <span className="text-[10px] font-normal text-slate-400 block">
+                                      {lic.billingCycle === "MONTHLY" ? "/month" : lic.billingCycle === "QUARTERLY" ? "/quarter" : "/year"}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="py-3 px-4">
+                                  {!isSub ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                      Perpetual (No Expiry)
+                                    </span>
+                                  ) : lic.liveStatus === "EXPIRED" ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                      Expired ({Math.abs(lic.daysRemaining || 0)}d ago)
+                                    </span>
+                                  ) : lic.liveStatus === "EXPIRING_SOON" ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 animate-pulse">
+                                      Renews in {lic.daysRemaining} days
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                      Renews {formatDate(lic.renewalDate)} ({lic.daysRemaining}d)
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="py-3 px-4 text-right">
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    {isSub && (
+                                      <button
+                                        onClick={() => handleRenewLicense(lic)}
+                                        disabled={renewingLicenseId === lic.id}
+                                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-semibold transition-colors cursor-pointer disabled:opacity-50"
+                                        title="Renew Subscription for next cycle & generate invoice"
+                                      >
+                                        <RefreshCw className={`w-3 h-3 ${renewingLicenseId === lic.id ? "animate-spin" : ""}`} />
+                                        <span>Renew</span>
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => setConfirmDeleteLicense(lic)}
+                                      className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                      title="Revoke / Delete License"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 7: Deploy Product to Client Modal */}
+      {showDeployModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                  <ShoppingBag className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Deploy Product to Client</h3>
+                  <p className="text-xs text-slate-500">Record a new customer license or subscription engagement</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowDeployModal(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleDeploySubmit} className="flex flex-col flex-1 overflow-hidden">
+              <div className="p-6 space-y-4 overflow-y-auto flex-1 text-xs">
+                {/* Client Selection */}
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Client Organization <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    required
+                    value={deployFormData.clientId}
+                    onChange={(e) => setDeployFormData({ ...deployFormData, clientId: e.target.value })}
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-medium"
+                  >
+                    <option value="">-- Choose Client Organization --</option>
+                    {clientsList.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.company} ({c.name})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Product Selection */}
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    In-House Product Initiative <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    required
+                    value={deployFormData.productId}
+                    onChange={(e) => {
+                      const prod = products.find((p) => p.id === e.target.value);
+                      setDeployFormData({
+                        ...deployFormData,
+                        productId: e.target.value,
+                        productName: prod ? prod.name : deployFormData.productName,
+                      });
+                    }}
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-medium"
+                  >
+                    <option value="">-- Choose Product --</option>
+                    {products.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({p.status})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* License Tier & Commercial Model (2 columns) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">License Tier</label>
+                    <select
+                      value={deployFormData.tier}
+                      onChange={(e) => setDeployFormData({ ...deployFormData, tier: e.target.value })}
+                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-medium"
+                    >
+                      <option value="STARTER">Starter Tier</option>
+                      <option value="PRO">Pro Tier</option>
+                      <option value="ENTERPRISE">Enterprise Tier</option>
+                      <option value="CUSTOM">Custom Dedicated</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Commercial Model</label>
+                    <select
+                      value={deployFormData.billingModel}
+                      onChange={(e) =>
+                        setDeployFormData({
+                          ...deployFormData,
+                          billingModel: e.target.value,
+                          billingCycle: e.target.value === "ONE_TIME" ? "ONE_OFF" : "ANNUAL",
+                        })
+                      }
+                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-medium"
+                    >
+                      <option value="SUBSCRIPTION">Recurring Subscription (SaaS)</option>
+                      <option value="ONE_TIME">One-Time Perpetual License</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Billing Cycle & Price (2 columns) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {deployFormData.billingModel === "SUBSCRIPTION" ? (
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Renewal Cycle</label>
+                      <select
+                        value={deployFormData.billingCycle}
+                        onChange={(e) => setDeployFormData({ ...deployFormData, billingCycle: e.target.value })}
+                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-medium"
+                      >
+                        <option value="ANNUAL">Annual Renewal (Every 1 Year)</option>
+                        <option value="QUARTERLY">Quarterly Renewal (Every 3 Months)</option>
+                        <option value="MONTHLY">Monthly Renewal (Every 1 Month)</option>
+                      </select>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Delivery Scope</label>
+                      <input
+                        type="text"
+                        disabled
+                        value="Perpetual (No Expiration)"
+                        className="w-full px-3.5 py-2 bg-slate-100 border border-slate-200 rounded-xl text-slate-500"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      Fee Amount (₹ INR) <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      step="any"
+                      placeholder="e.g. 50000"
+                      value={deployFormData.price}
+                      onChange={(e) => setDeployFormData({ ...deployFormData, price: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Start Date & Deployment URL */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Effective Start Date</label>
+                    <DateInput
+                      value={deployFormData.startDate}
+                      onChange={(val) => setDeployFormData({ ...deployFormData, startDate: val })}
+                      className="w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Deployment URL / Domain (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="https://quiz.clientdomain.com"
+                      value={deployFormData.deploymentUrl}
+                      onChange={(e) => setDeployFormData({ ...deployFormData, deploymentUrl: e.target.value })}
+                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Terms & SLA Notes */}
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Terms, Limits & Notes</label>
+                  <textarea
+                    rows={2}
+                    placeholder="e.g. Dedicated cloud cluster; max 1,000 active employees; 99.9% uptime SLA"
+                    value={deployFormData.notes}
+                    onChange={(e) => setDeployFormData({ ...deployFormData, notes: e.target.value })}
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  />
+                </div>
+
+                {/* Auto Invoice Option */}
+                <div className="p-3 bg-emerald-50 border border-emerald-200/80 rounded-xl flex items-center gap-2.5">
+                  <input
+                    type="checkbox"
+                    id="autoInvoiceCheck"
+                    checked={deployFormData.autoInvoice}
+                    onChange={(e) => setDeployFormData({ ...deployFormData, autoInvoice: e.target.checked })}
+                    className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
+                  />
+                  <label htmlFor="autoInvoiceCheck" className="text-xs font-semibold text-emerald-950 cursor-pointer">
+                    Automatically generate official billing invoice in Invoices & Billing tab (with 18% GST)
+                  </label>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-2 bg-slate-50/70 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowDeployModal(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingDeploy || !deployFormData.clientId}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-xs cursor-pointer"
+                >
+                  {isSubmittingDeploy ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Deploying License...</span>
+                    </>
+                  ) : (
+                    <span>Deploy Product License</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 8: Revoke/Delete License Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={!!confirmDeleteLicense}
+        title="Revoke & Delete Product License"
+        itemName={confirmDeleteLicense ? `${confirmDeleteLicense.productName} (${confirmDeleteLicense.licenseKey}) for ${confirmDeleteLicense.client.company}` : undefined}
+        description="Are you sure you want to revoke this product license? The license key will be decommissioned and subscription telemetry will be removed."
+        confirmText="Revoke License"
+        isDeleting={isDeletingLicense}
+        onConfirm={handleDeleteLicenseConfirm}
+        onCancel={() => setConfirmDeleteLicense(null)}
+      />
     </AppLayout>
   );
 }

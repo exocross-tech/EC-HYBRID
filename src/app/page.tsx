@@ -142,6 +142,44 @@ export default function DashboardPage() {
         <div className="absolute -right-16 -top-16 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
       </div>
 
+      {/* Subscription Renewal Horizon Alert Radar */}
+      {stats?.renewalRadar && stats.renewalRadar.totalExpiringSoon > 0 && (
+        <div className="mb-5 sm:mb-6 p-4 rounded-2xl bg-amber-50/80 border border-amber-200/90 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3 animate-in fade-in">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 shrink-0 mt-0.5">
+              <Clock className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-200/60 text-amber-900 border border-amber-300">
+                  Renewal Horizon Radar
+                </span>
+                <span className="text-xs font-bold text-amber-950">
+                  {stats.renewalRadar.totalExpiringSoon} client subscription{stats.renewalRadar.totalExpiringSoon > 1 ? "s" : ""} due for renewal within 30 days
+                </span>
+              </div>
+              <p className="text-xs text-amber-800/90 mt-1">
+                Upcoming:{" "}
+                {stats.renewalRadar.expiringList
+                  .map(
+                    (lic: any) =>
+                      `${lic.clientName} (${lic.productName} • ${lic.daysLeft < 0 ? "Expired" : lic.daysLeft === 0 ? "Today" : `${lic.daysLeft}d left`})`
+                  )
+                  .join(" • ")}
+              </p>
+            </div>
+          </div>
+
+          <Link
+            href="/products"
+            className="shrink-0 px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+          >
+            <span>Review & Renew</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      )}
+
       {/* 2. Role-Specific Metric Cards (For Manager, HR, and Employee) */}
       {user.role !== "ADMIN" && (
         <div className="mb-6">

@@ -29,6 +29,8 @@ import {
   Calendar,
   Layers,
   Eye,
+  KeyRound,
+  ArrowUpRight,
 } from "lucide-react";
 
 interface Client {
@@ -59,6 +61,21 @@ interface Client {
     status: string;
     orderDate: string;
     product: { name: string; price: number };
+  }>;
+  productLicenses?: Array<{
+    id: string;
+    productName: string;
+    licenseKey: string;
+    tier: string;
+    billingModel: string;
+    billingCycle: string;
+    price: number;
+    startDate: string;
+    renewalDate?: string | null;
+    status: string;
+    deploymentUrl?: string | null;
+    notes?: string | null;
+    invoiceNumber?: string | null;
   }>;
 }
 
@@ -965,6 +982,112 @@ export default function ClientsPage() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Subscribed & Owned Products (Deployments & Licenses) */}
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                    <KeyRound className="w-4 h-4 text-emerald-600" />
+                    <span>Subscribed & Owned Products ({(viewingClient.productLicenses || []).length})</span>
+                  </span>
+                  <a
+                    href="/products"
+                    className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1 hover:underline"
+                  >
+                    Manage in Products Hub <ArrowUpRight className="w-3 h-3" />
+                  </a>
+                </div>
+
+                {(!viewingClient.productLicenses || viewingClient.productLicenses.length === 0) ? (
+                  <p className="text-center py-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-400">
+                    No products deployed or licensed to this client yet.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {viewingClient.productLicenses.map((lic) => {
+                      const isExpiringSoon = lic.status === "EXPIRING_SOON";
+                      const isExpired = lic.status === "EXPIRED";
+                      const daysUntil = lic.renewalDate
+                        ? Math.ceil((new Date(lic.renewalDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                        : null;
+
+                      return (
+                        <div key={lic.id} className="p-3 rounded-xl bg-white border border-slate-200 shadow-xs space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-slate-900 text-xs">{lic.productName}</span>
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                                {lic.tier}
+                              </span>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                {lic.billingModel === "ONE_TIME" ? "One-Time Perpetual" : `SaaS (${lic.billingCycle})`}
+                              </span>
+                            </div>
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                isExpired
+                                  ? "bg-rose-50 text-rose-700 border-rose-200"
+                                  : isExpiringSoon
+                                  ? "bg-amber-50 text-amber-700 border-amber-200 animate-pulse"
+                                  : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              }`}
+                            >
+                              {lic.status}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-2 text-[11px] pt-1.5 border-t border-slate-100 text-slate-600">
+                            <div>
+                              <span className="text-slate-400 block text-[10px] uppercase">License Key</span>
+                              <span className="font-mono text-[10px] text-slate-700 font-semibold">{lic.licenseKey}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 block text-[10px] uppercase">Pricing</span>
+                              <span className="font-bold text-emerald-700">{formatINR(lic.price)}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 block text-[10px] uppercase">Renewal Horizon</span>
+                              {lic.billingModel === "ONE_TIME" ? (
+                                <span className="font-medium text-slate-500">Perpetual (No Expiry)</span>
+                              ) : (
+                                <span
+                                  className={`font-semibold ${
+                                    isExpired
+                                      ? "text-rose-600"
+                                      : isExpiringSoon
+                                      ? "text-amber-600"
+                                      : "text-slate-700"
+                                  }`}
+                                >
+                                  {daysUntil !== null
+                                    ? daysUntil < 0
+                                      ? `Expired ${Math.abs(daysUntil)}d ago`
+                                      : `Renews in ${daysUntil}d`
+                                    : "—"}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {lic.deploymentUrl && (
+                            <div className="pt-1 border-t border-slate-50 flex items-center justify-between text-[11px]">
+                              <span className="text-slate-400 text-[10px]">URL:</span>
+                              <a
+                                href={lic.deploymentUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-indigo-600 hover:underline flex items-center gap-1 font-mono text-[10px]"
+                              >
+                                {lic.deploymentUrl} <ExternalLink className="w-2.5 h-2.5" />
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
