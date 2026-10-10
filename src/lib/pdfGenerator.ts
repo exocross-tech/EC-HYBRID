@@ -1003,14 +1003,19 @@ export function buildModernTechPDFDoc(invoice: InvoicePDFData, org?: any): jsPDF
       !org.logoUrl.includes("logo.png");
 
     if (isCustomLogo) {
-      // Seamlessly mask the left area with the matching header background color (#1a1a1a)
+      // Seamlessly mask the left area with matching header background color (#1a1a1a)
+      // Height trimmed to 38.5mm to be in exact equal height with the tech header background
       doc.setFillColor(26, 26, 26);
-      doc.rect(0, 0, 65, 42, "F");
+      doc.rect(0, 0, 65, 38.5, "F");
       try {
         const format = org.logoUrl.includes("png") ? "PNG" : "JPEG";
-        doc.addImage(org.logoUrl, format, margin, 11, 20, 20);
+        doc.addImage(org.logoUrl, format, margin, 9.25, 20, 20);
       } catch {}
     }
+
+    // Continuous dark blue horizontal accent stripe running seamlessly across entire header
+    doc.setFillColor(37, 99, 235); // #2563EB Electric Blue
+    doc.rect(0, 38.5, pageWidth, 3.5, "F");
 
     // Cyan circuit accent line beneath banner
     doc.setFillColor(0, 229, 255); // #00E5FF

@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { formatDate, formatDateTime } from "@/lib/formatDate";
+import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 
 interface SocialPost {
   id: string;
@@ -74,6 +75,8 @@ export default function SocialPage() {
     new Date(Date.now() + 86400000).toISOString().slice(0, 16)
   );
   const [submitting, setSubmitting] = useState(false);
+  const [deletingPost, setDeletingPost] = useState<SocialPost | null>(null);
+  const [isDeletingPost, setIsDeletingPost] = useState(false);
 
   // Fetch posts
   const fetchPosts = async () => {
@@ -166,18 +169,29 @@ export default function SocialPage() {
     }
   };
 
-  // Delete post
-  const handleDeletePost = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this post?")) return;
+  // Delete post trigger
+  const handleDeletePost = (post: SocialPost) => {
+    setDeletingPost(post);
+  };
+
+  const handleConfirmDeletePost = async () => {
+    if (!deletingPost) return;
+    setIsDeletingPost(true);
     try {
-      const res = await fetch(`/api/social/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/social/${deletingPost.id}`, { method: "DELETE" });
       if (res.ok) {
         setSuccessMsg("Post deleted");
+        setDeletingPost(null);
         fetchPosts();
         setTimeout(() => setSuccessMsg(null), 3000);
+      } else {
+        const err = await res.json();
+        setErrorMsg(err.error || "Failed to delete post");
       }
     } catch {
       setErrorMsg("Failed to delete post");
+    } finally {
+      setIsDeletingPost(false);
     }
   };
 
@@ -484,8 +498,8 @@ export default function SocialPage() {
                         </span>
 
                         <button
-                          onClick={() => handleDeletePost(post.id)}
-                          className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
+                          onClick={() => handleDeletePost(post)}
+                          className="p-1 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
                           title="Delete post"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -538,6 +552,18 @@ export default function SocialPage() {
           </div>
         </div>
       </div>
+
+      {/* Dynamic Custom Delete Post Modal (Item 5) */}
+      <DeleteConfirmModal
+        isOpen={!!deletingPost}
+        title="Delete Social Media Post"
+        itemName={deletingPost ? `${deletingPost.platform}: ${deletingPost.content.slice(0, 50)}...` : undefined}
+        description="Are you sure you want to delete this social broadcast post? Scheduled broadcasts and analytics tracking will be cancelled."
+        confirmText="Delete Post"
+        isDeleting={isDeletingPost}
+        onConfirm={handleConfirmDeletePost}
+        onCancel={() => setDeletingPost(null)}
+      />
     </AppLayout>
   );
 }

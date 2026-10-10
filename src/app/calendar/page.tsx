@@ -23,6 +23,7 @@ import {
   Edit2,
 } from "lucide-react";
 import { formatDate } from "@/lib/formatDate";
+import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 
 interface CalendarEvent {
   id: string;
@@ -69,6 +70,8 @@ export default function CalendarPage() {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [dayEventsModal, setDayEventsModal] = useState<{ date: string; events: CalendarEvent[] } | null>(null);
   const [isEditingSelectedEvent, setIsEditingSelectedEvent] = useState(false);
+  const [deletingEvent, setDeletingEvent] = useState<CalendarEvent | null>(null);
+  const [isDeletingEvent, setIsDeletingEvent] = useState(false);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -211,24 +214,34 @@ export default function CalendarPage() {
     }
   };
 
-  const handleDeleteEvent = async (ev: CalendarEvent) => {
-    if (!confirm(`Remove event "${ev.title}"?`)) return;
+  const handleDeleteEvent = (ev: CalendarEvent) => {
+    setDeletingEvent(ev);
+  };
 
+  const handleConfirmDeleteEvent = async () => {
+    if (!deletingEvent) return;
+    setIsDeletingEvent(true);
     try {
-      const res = await fetch(`/api/calendar/${ev.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/calendar/${deletingEvent.id}`, { method: "DELETE" });
       if (res.ok) {
-        setActionSuccess(`Event "${ev.title}" removed.`);
+        setActionSuccess(`Event "${deletingEvent.title}" removed.`);
         setSelectedEvent(null);
         if (dayEventsModal) {
           setDayEventsModal({
             ...dayEventsModal,
-            events: dayEventsModal.events.filter((e) => e.id !== ev.id),
+            events: dayEventsModal.events.filter((e) => e.id !== deletingEvent.id),
           });
         }
+        setDeletingEvent(null);
         fetchEvents();
+      } else {
+        const data = await res.json();
+        setActionError(data.error || "Failed to remove event");
       }
     } catch (err: any) {
       setActionError(err.message || "Network error");
+    } finally {
+      setIsDeletingEvent(false);
     }
   };
 
@@ -1113,6 +1126,18 @@ export default function CalendarPage() {
           </div>
         </div>
       )}
+
+      {/* Dynamic Custom Delete Event Modal (Item 5) */}
+      <DeleteConfirmModal
+        isOpen={!!deletingEvent}
+        title="Remove Calendar Event"
+        itemName={deletingEvent?.title}
+        description="Are you sure you want to remove this scheduled event from the company calendar?"
+        confirmText="Remove Event"
+        isDeleting={isDeletingEvent}
+        onConfirm={handleConfirmDeleteEvent}
+        onCancel={() => setDeletingEvent(null)}
+      />
     </AppLayout>
   );
 }

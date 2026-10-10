@@ -51,3 +51,11 @@ body {
 .gradient-accent {
   background: linear-gradient(135deg, #2d2ae8 0%, #2563eb 100%);
 }
+
+/* Universal dimmed placeholders so placeholders are never mistaken for typed text */
+::placeholder,
+input::placeholder,
+textarea::placeholder {
+  color: #94a3b8 !important; /* slate-400 */
+  opacity: 0.65 !important;
+}

@@ -2197,16 +2197,6 @@ export default function InvoicesPage() {
                     />
                   </div>
 
-                  <div className="bg-indigo-50/80 border border-indigo-100 rounded-lg p-2 flex items-center justify-between text-[11px] text-indigo-800">
-                    <span>💡 Once logged, founders (CEO & Co-CEO) can split this revenue in <strong>Salary & Payroll</strong>.</span>
-                    <a
-                      href="/payroll"
-                      className="font-bold underline text-indigo-900 hover:text-indigo-700 ml-2 shrink-0 cursor-pointer"
-                    >
-                      Split in Payroll →
-                    </a>
-                  </div>
-
                   <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                     <button
                       type="button"

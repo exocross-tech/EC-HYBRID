@@ -1166,18 +1166,6 @@ export default function ClientsPage() {
                 />
               </div>
 
-              {/* Requirement 3: Client Notes Field */}
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Client Notes</label>
-                <textarea
-                  rows={3}
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Key account background, billing cycles, specific preferences, or delivery instructions..."
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600 min-h-[64px] resize-none"
-                />
-              </div>
-
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Business Line</label>
@@ -1212,6 +1200,18 @@ export default function ClientsPage() {
                     <option value="INACTIVE">INACTIVE</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Requirement 3: Client Notes Field (Placed at the bottom for extensive notes) */}
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Client Notes</label>
+                <textarea
+                  rows={3}
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  placeholder="Key account background, billing cycles, specific preferences, or delivery instructions..."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600 min-h-[64px] resize-none"
+                />
               </div>
 
               <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2 shrink-0">
@@ -1319,18 +1319,6 @@ export default function ClientsPage() {
                 />
               </div>
 
-              {/* Requirement 3: Client Notes Field */}
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Client Notes</label>
-                <textarea
-                  rows={3}
-                  value={editFormData.notes}
-                  onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
-                  placeholder="Account background, communication notes, or project preferences..."
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600 min-h-[64px] resize-none"
-                />
-              </div>
-
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Business Line</label>
@@ -1365,6 +1353,18 @@ export default function ClientsPage() {
                     <option value="INACTIVE">INACTIVE</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Requirement 3: Client Notes Field (Placed at the bottom for extensive notes) */}
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Client Notes</label>
+                <textarea
+                  rows={3}
+                  value={editFormData.notes}
+                  onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
+                  placeholder="Account background, communication notes, or project preferences..."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600 min-h-[64px] resize-none"
+                />
               </div>
 
               <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2 shrink-0">

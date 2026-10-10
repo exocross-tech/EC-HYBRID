@@ -1329,12 +1329,6 @@ export default function ProductsPage() {
                   rows={10}
                   value={vaultText}
                   onChange={(e) => setVaultText(e.target.value)}
-                  placeholder="### Architecture Overview
-- Frontend: Next.js App Router, Tailwind CSS
-- Backend: Next.js Server Actions, Prisma ORM, PostgreSQL
-- Repo: https://github.com/exocross/product-repo
-- Staging URL: https://staging.product.exocross.in
-- Cloud: AWS / Vercel Enterprise"
                   className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all leading-relaxed"
                 />
               </div>

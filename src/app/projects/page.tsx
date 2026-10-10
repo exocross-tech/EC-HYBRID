@@ -921,17 +921,6 @@ export default function ProjectsPage() {
                   rows={14}
                   value={requirementsText}
                   onChange={(e) => setRequirementsText(e.target.value)}
-                  placeholder={`### Requirements & Deliverables:
-- Milestone 1: User auth and database setup
-- Milestone 2: Payment gateway integration
-
-### Credentials & Keys:
-- Staging URL: https://staging.example.com
-- API Key: sk_test_...
-- Database Host: db.example.internal
-
-### Technical Notes:
-- Client requested weekly progress updates on Fridays`}
                   className="w-full p-4 font-mono text-xs bg-slate-50 text-slate-800 rounded-xl border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-600 resize-none leading-relaxed transition-all shadow-inner"
                 />
               </div>
@@ -1103,11 +1092,6 @@ export default function ProjectsPage() {
                     placeholder="0"
                     className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                   />
-                  {formData.type === "PRODUCT" && (
-                    <span className="text-[10px] text-amber-600 mt-0.5 block">
-                      Internal expenditure allocated from company reserves. Non-billable.
-                    </span>
-                  )}
                 </div>
 
                 <div>
@@ -1115,9 +1099,8 @@ export default function ProjectsPage() {
                     {formData.type === "PRODUCT" ? "Billing Structure" : "Billing Type"}
                   </label>
                   {formData.type === "PRODUCT" ? (
-                    <div className="p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold flex items-center gap-1.5">
-                      <Flame className="w-3.5 h-3.5 text-amber-600" />
-                      <span>Non-Billable Internal R&D Outlay</span>
+                    <div className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 text-xs flex items-center">
+                      Non-Billable Internal R&D Outlay
                     </div>
                   ) : (
                     <select
