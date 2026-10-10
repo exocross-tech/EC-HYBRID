@@ -9,6 +9,30 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error || "Only Admin & HR have access to salary structures" }, { status: status || 403 });
   }
 
+  // Ensure every active staff member (Employee / Manager) has a salary record
+  const allStaff = await prisma.user.findMany({
+    where: {
+      status: "ACTIVE",
+      role: { in: ["EMPLOYEE", "MANAGER"] },
+    },
+    select: { id: true, name: true },
+  });
+
+  for (const staff of allStaff) {
+    const existing = await prisma.salary.findUnique({ where: { userId: staff.id } });
+    if (!existing) {
+      await prisma.salary.create({
+        data: {
+          userId: staff.id,
+          basicPay: 0,
+          allowances: 0,
+          deductions: 0,
+          netSalary: 0,
+        },
+      });
+    }
+  }
+
   const salaries = await prisma.salary.findMany({
     include: {
       user: {

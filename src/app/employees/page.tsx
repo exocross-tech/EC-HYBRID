@@ -5,6 +5,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { RoleBadge } from "@/components/RoleBadge";
 import { useAuth } from "@/context/AuthContext";
 import { formatDate } from "@/lib/formatDate";
+import { CreatableCombobox } from "@/components/CreatableCombobox";
 import {
   Users,
   UserPlus,
@@ -61,6 +62,13 @@ export default function EmployeesPage() {
   const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
   const [confirmDeleteEmployee, setConfirmDeleteEmployee] = useState<Employee | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Dynamic departments aggregation (Item 4)
+  const availableDepartments = React.useMemo(() => {
+    const existing = Array.from(new Set(employees.map((e) => e.department).filter(Boolean)));
+    const defaults = ["Engineering", "Executive", "Human Resources", "Product & Design", "Sales & Marketing", "Operations"];
+    return Array.from(new Set([...defaults, ...existing])).sort();
+  }, [employees]);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -334,14 +342,14 @@ export default function EmployeesPage() {
             <select
               value={departmentFilter}
               onChange={(e) => setDepartmentFilter(e.target.value)}
-              className="flex-1 sm:flex-none px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+              className="flex-1 sm:flex-none px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600 cursor-pointer"
             >
               <option value="">All Departments</option>
-              <option value="Executive">Executive</option>
-              <option value="Engineering">Engineering</option>
-              <option value="Human Resources">Human Resources</option>
-              <option value="Sales">Sales</option>
-              <option value="Operations">Operations</option>
+              {availableDepartments.map((dept) => (
+                <option key={dept} value={dept}>
+                  {dept}
+                </option>
+              ))}
             </select>
           )}
 
@@ -822,17 +830,12 @@ export default function EmployeesPage() {
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Department</label>
-                  <select
+                  <CreatableCombobox
                     value={formData.department}
-                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  >
-                    <option value="Engineering">Engineering</option>
-                    <option value="Executive">Executive</option>
-                    <option value="Human Resources">Human Resources</option>
-                    <option value="Sales">Sales</option>
-                    <option value="Operations">Operations</option>
-                  </select>
+                    onChange={(val) => setFormData({ ...formData, department: val })}
+                    options={availableDepartments}
+                    placeholder="Select or type department..."
+                  />
                 </div>
               </div>
 
@@ -994,17 +997,12 @@ export default function EmployeesPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">Department</label>
-                      <select
+                      <CreatableCombobox
                         value={editFormData.department}
-                        onChange={(e) => setEditFormData({ ...editFormData, department: e.target.value })}
-                        className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
-                      >
-                        <option value="Engineering">Engineering</option>
-                        <option value="Executive">Executive</option>
-                        <option value="Human Resources">Human Resources</option>
-                        <option value="Sales">Sales</option>
-                        <option value="Operations">Operations</option>
-                      </select>
+                        onChange={(val) => setEditFormData({ ...editFormData, department: val })}
+                        options={availableDepartments}
+                        placeholder="Select or type department..."
+                      />
                     </div>
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">Status</label>

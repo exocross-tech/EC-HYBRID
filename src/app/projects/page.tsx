@@ -31,6 +31,7 @@ import {
   Box,
   Flame,
 } from "lucide-react";
+import { DateInput } from "@/components/DateInput";
 
 interface Project {
   id: string;
@@ -1155,20 +1156,18 @@ export default function ProjectsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Target Start Date</label>
-                  <input
-                    type="date"
+                  <DateInput
                     value={formData.startDate}
-                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    onChange={(val) => setFormData({ ...formData, startDate: val })}
+                    placeholder="DD-MM-YYYY"
                   />
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Target End Date</label>
-                  <input
-                    type="date"
+                  <DateInput
                     value={formData.endDate}
-                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    onChange={(val) => setFormData({ ...formData, endDate: val })}
+                    placeholder="DD-MM-YYYY"
                   />
                 </div>
               </div>

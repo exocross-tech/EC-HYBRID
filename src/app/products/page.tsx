@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { AssigneeAvatarCluster } from "@/components/AssigneeAvatarCluster";
 import { MultiAssigneeSelect } from "@/components/MultiAssigneeSelect";
+import { DateInput } from "@/components/DateInput";
 
 interface ProductTask {
   id: string;
@@ -1143,11 +1144,10 @@ export default function ProductsPage() {
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-700 mb-1">Due Date</label>
-                      <input
-                        type="date"
+                      <DateInput
                         value={newTaskData.dueDate}
-                        onChange={(e) => setNewTaskData({ ...newTaskData, dueDate: e.target.value })}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                        onChange={(val) => setNewTaskData({ ...newTaskData, dueDate: val })}
+                        placeholder="DD-MM-YYYY"
                       />
                     </div>
                     <div className="sm:col-span-2">
@@ -1455,11 +1455,10 @@ export default function ProductsPage() {
                     <label className="block text-xs font-medium text-slate-700 mb-1">
                       Kickoff Date
                     </label>
-                    <input
-                      type="date"
+                    <DateInput
                       value={formData.startDate}
-                      onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      onChange={(val) => setFormData({ ...formData, startDate: val })}
+                      placeholder="DD-MM-YYYY"
                     />
                   </div>
 
@@ -1467,11 +1466,10 @@ export default function ProductsPage() {
                     <label className="block text-xs font-medium text-slate-700 mb-1">
                       Target Release / Launch Date
                     </label>
-                    <input
-                      type="date"
+                    <DateInput
                       value={formData.endDate}
-                      onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      onChange={(val) => setFormData({ ...formData, endDate: val })}
+                      placeholder="DD-MM-YYYY"
                     />
                   </div>
                 </div>
@@ -1603,11 +1601,10 @@ export default function ProductsPage() {
                     <label className="block text-xs font-medium text-slate-700 mb-1">
                       Kickoff Date
                     </label>
-                    <input
-                      type="date"
+                    <DateInput
                       value={formData.startDate}
-                      onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      onChange={(val) => setFormData({ ...formData, startDate: val })}
+                      placeholder="DD-MM-YYYY"
                     />
                   </div>
 
@@ -1615,11 +1612,10 @@ export default function ProductsPage() {
                     <label className="block text-xs font-medium text-slate-700 mb-1">
                       Target Release / Launch Date
                     </label>
-                    <input
-                      type="date"
+                    <DateInput
                       value={formData.endDate}
-                      onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      onChange={(val) => setFormData({ ...formData, endDate: val })}
+                      placeholder="DD-MM-YYYY"
                     />
                   </div>
                 </div>

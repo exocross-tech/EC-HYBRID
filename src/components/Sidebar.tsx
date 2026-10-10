@@ -37,9 +37,14 @@ interface NavItem {
 interface SidebarProps {
   mobileOpen?: boolean;
   onCloseMobile?: () => void;
+  desktopCollapsed?: boolean;
 }
 
-export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
+export function Sidebar({
+  mobileOpen = false,
+  onCloseMobile,
+  desktopCollapsed = false,
+}: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
@@ -257,7 +262,13 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
       </aside>
 
       {/* 3. Desktop Persistent Sidebar (>= lg) */}
-      <aside className="hidden lg:flex w-64 bg-white border-r border-slate-200 flex-col h-screen shrink-0 select-none shadow-sm overflow-hidden">
+      <aside
+        className={`hidden lg:flex bg-white border-slate-200 flex-col h-screen shrink-0 select-none shadow-sm overflow-hidden transition-all duration-300 ease-in-out ${
+          desktopCollapsed
+            ? "w-0 opacity-0 border-r-0 pointer-events-none"
+            : "w-64 opacity-100 border-r"
+        }`}
+      >
         <div className="h-16 flex items-center px-5 border-b border-slate-200 gap-3">
           <div className="relative w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center p-0.5 bg-slate-100 shadow-sm border border-slate-200">
             <Image

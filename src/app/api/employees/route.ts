@@ -144,6 +144,19 @@ export async function POST(req: NextRequest) {
     });
 
 
+    // Auto-initialize default salary structure for employees & managers
+    if (newEmployee.role === "EMPLOYEE" || newEmployee.role === "MANAGER") {
+      await prisma.salary.create({
+        data: {
+          userId: newEmployee.id,
+          basicPay: 0,
+          allowances: 0,
+          deductions: 0,
+          netSalary: 0,
+        },
+      });
+    }
+
     // Audit log
     await prisma.auditLog.create({
       data: {

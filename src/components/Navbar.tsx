@@ -10,10 +10,14 @@ export function Navbar({
   title,
   subtitle,
   onOpenMobileMenu,
+  desktopCollapsed = false,
+  onToggleDesktopCollapse,
 }: {
   title: string;
   subtitle?: string;
   onOpenMobileMenu?: () => void;
+  desktopCollapsed?: boolean;
+  onToggleDesktopCollapse?: () => void;
 }) {
   const { user, logout } = useAuth();
 
@@ -22,6 +26,7 @@ export function Navbar({
   return (
     <header className="h-16 bg-white border-b border-slate-200 px-3 sm:px-6 flex items-center justify-between sticky top-0 z-20 select-none shadow-xs">
       <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 pr-2">
+        {/* Mobile drawer toggle */}
         {onOpenMobileMenu && (
           <button
             type="button"
@@ -32,7 +37,19 @@ export function Navbar({
             <Menu className="w-5 h-5" />
           </button>
         )}
-        <div className="min-w-0">
+        {/* Desktop collapsible sidebar toggle button */}
+        {onToggleDesktopCollapse && (
+          <button
+            type="button"
+            onClick={onToggleDesktopCollapse}
+            className="hidden lg:flex p-1.5 -ml-1 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors shrink-0 cursor-pointer"
+            aria-label="Toggle sidebar"
+            title={desktopCollapsed ? "Expand sidebar" : "Collapse sidebar into full view"}
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        )}
+        <div className="min-w-0 ml-1.5">
           <h1 className="text-sm sm:text-base md:text-lg font-bold text-slate-900 leading-tight truncate">
             {title}
           </h1>

@@ -17,6 +17,29 @@ export function AppLayout({ children, title, subtitle }: AppLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false);
+
+  // Load persisted desktop sidebar state on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("ec_desktop_sidebar_collapsed");
+      if (saved !== null) {
+        setDesktopSidebarCollapsed(saved === "true");
+      }
+    } catch (e) {
+      // localStorage may fail in private mode
+    }
+  }, []);
+
+  const handleToggleDesktopCollapse = () => {
+    setDesktopSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("ec_desktop_sidebar_collapsed", String(next));
+      } catch (e) {}
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!loading && !user && pathname !== "/login") {
@@ -56,12 +79,15 @@ export function AppLayout({ children, title, subtitle }: AppLayoutProps) {
       <Sidebar
         mobileOpen={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
+        desktopCollapsed={desktopSidebarCollapsed}
       />
       <div className="flex-1 flex flex-col h-screen min-w-0 overflow-hidden">
         <Navbar
           title={title}
           subtitle={subtitle}
           onOpenMobileMenu={() => setMobileMenuOpen(true)}
+          desktopCollapsed={desktopSidebarCollapsed}
+          onToggleDesktopCollapse={handleToggleDesktopCollapse}
         />
         <main className="flex-1 p-3.5 sm:p-5 md:p-6 overflow-y-auto">{children}</main>
       </div>

@@ -5,6 +5,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { useAuth } from "@/context/AuthContext";
 import { formatINR } from "@/lib/formatCurrency";
 import { formatDate } from "@/lib/formatDate";
+import { CreatableCombobox } from "@/components/CreatableCombobox";
 import {
   Building2,
   Plus,
@@ -1192,19 +1193,12 @@ export default function ClientsPage() {
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Lead Source</label>
-                  <input
-                    type="text"
-                    list="addClientLeadSourcesList"
+                  <CreatableCombobox
                     value={formData.leadSource}
-                    onChange={(e) => setFormData({ ...formData, leadSource: e.target.value })}
-                    placeholder="Type or select source..."
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    onChange={(val) => setFormData({ ...formData, leadSource: val })}
+                    options={availableLeadSources}
+                    placeholder="Select or type lead source..."
                   />
-                  <datalist id="addClientLeadSourcesList">
-                    {availableLeadSources.map((source) => (
-                      <option key={source} value={source} />
-                    ))}
-                  </datalist>
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Account Status</label>
@@ -1352,19 +1346,12 @@ export default function ClientsPage() {
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Lead Source</label>
-                  <input
-                    type="text"
-                    list="editClientLeadSourcesList"
+                  <CreatableCombobox
                     value={editFormData.leadSource}
-                    onChange={(e) => setEditFormData({ ...editFormData, leadSource: e.target.value })}
-                    placeholder="Type or select source..."
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    onChange={(val) => setEditFormData({ ...editFormData, leadSource: val })}
+                    options={availableLeadSources}
+                    placeholder="Select or type lead source..."
                   />
-                  <datalist id="editClientLeadSourcesList">
-                    {availableLeadSources.map((source) => (
-                      <option key={source} value={source} />
-                    ))}
-                  </datalist>
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Account Status</label>

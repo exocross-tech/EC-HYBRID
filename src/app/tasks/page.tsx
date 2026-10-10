@@ -24,10 +24,13 @@ import {
   ListTodo,
   Loader2,
   Users,
+  Archive,
+  Download,
 } from "lucide-react";
 import { formatDate } from "@/lib/formatDate";
 import { AssigneeAvatarCluster } from "@/components/AssigneeAvatarCluster";
 import { MultiAssigneeSelect } from "@/components/MultiAssigneeSelect";
+import { DateInput } from "@/components/DateInput";
 
 interface Task {
   id: string;
@@ -101,6 +104,15 @@ export default function TasksPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Drag and drop state (Item 2)
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+
+  // Completed task cleanup state (Item 3)
+  const [showCleanupModal, setShowCleanupModal] = useState(false);
+  const [cleanupOlderDays, setCleanupOlderDays] = useState(30);
+  const [isCleaning, setIsCleaning] = useState(false);
 
   // Auto-dismiss success notification after 3 seconds
   useEffect(() => {
@@ -256,6 +268,86 @@ export default function TasksPage() {
       }
     } catch (err: any) {
       setActionError(err.message || "Network error");
+    }
+  };
+
+  // HTML5 Drag and Drop Handler (Item 2)
+  const handleDropTask = async (taskId: string, newStatus: Task["status"]) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task || task.status === newStatus) return;
+
+    // Instant optimistic update
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
+    );
+
+    try {
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) {
+        // Rollback on failure
+        setTasks((prev) =>
+          prev.map((t) => (t.id === taskId ? { ...t, status: task.status } : t))
+        );
+        setActionError("Failed to update task status");
+      }
+    } catch (err: any) {
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, status: task.status } : t))
+      );
+      setActionError(err.message || "Network error");
+    }
+  };
+
+  // Export completed tasks backup before cleanup (Item 3)
+  const handleExportCompletedTasks = async () => {
+    try {
+      const res = await fetch("/api/tasks/cleanup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ olderThanDays: cleanupOlderDays, action: "EXPORT" }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const jsonStr = JSON.stringify(data.tasks, null, 2);
+        const blob = new Blob([jsonStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `EC_HYBRID_Completed_Tasks_Backup_${cleanupOlderDays}d.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      setActionError("Failed to export backup");
+    }
+  };
+
+  // Execute database task cleanup (Item 3)
+  const handleExecuteCleanup = async () => {
+    setIsCleaning(true);
+    setActionError(null);
+    try {
+      const res = await fetch("/api/tasks/cleanup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ olderThanDays: cleanupOlderDays }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setActionSuccess(data.message || `Cleaned up ${data.deletedCount} tasks`);
+        setShowCleanupModal(false);
+        fetchTasks();
+      } else {
+        setActionError(data.error || "Failed to cleanup tasks");
+      }
+    } catch (err: any) {
+      setActionError(err.message || "Network error");
+    } finally {
+      setIsCleaning(false);
     }
   };
 
@@ -451,38 +543,52 @@ export default function TasksPage() {
             </select>
           )}
 
-          {/* Date Picker for Daily Planner */}
+          {/* Date Picker for Daily Planner (DD-MM-YYYY) */}
           {viewMode === "PLANNER" && (
-            <input
-              type="date"
-              value={plannerDate}
-              onChange={(e) => setPlannerDate(e.target.value)}
-              className="flex-1 sm:flex-none px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-            />
+            <div className="w-36">
+              <DateInput
+                value={plannerDate}
+                onChange={(val) => setPlannerDate(val)}
+                placeholder="DD-MM-YYYY"
+              />
+            </div>
           )}
         </div>
 
-        {canAssignTasks && (
-          <button
-            onClick={() => {
-              setFormData({
-                title: "",
-                description: "",
-                projectId: projects[0]?.id || "",
-                assignedToId: employees[0]?.id || "",
-                assigneeIds: employees[0]?.id ? [employees[0].id] : [],
-                status: "TODO",
-                priority: "MEDIUM",
-                dueDate: "",
-              });
-              setIsAddModalOpen(true);
-            }}
-            className="w-full sm:w-auto px-3.5 py-2 sm:py-1.5 gradient-brand text-white font-medium text-xs rounded-lg hover:opacity-95 transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Assign New Task</span>
-          </button>
-        )}
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {isAdmin && (
+            <button
+              onClick={() => setShowCleanupModal(true)}
+              className="px-3 py-2 sm:py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+              title="Clean up old completed tasks to optimize performance"
+            >
+              <Archive className="w-3.5 h-3.5 text-slate-500" />
+              <span>Clean Up Tasks</span>
+            </button>
+          )}
+
+          {canAssignTasks && (
+            <button
+              onClick={() => {
+                setFormData({
+                  title: "",
+                  description: "",
+                  projectId: projects[0]?.id || "",
+                  assignedToId: employees[0]?.id || "",
+                  assigneeIds: employees[0]?.id ? [employees[0].id] : [],
+                  status: "TODO",
+                  priority: "MEDIUM",
+                  dueDate: "",
+                });
+                setIsAddModalOpen(true);
+              }}
+              className="w-full sm:w-auto px-3.5 py-2 sm:py-1.5 gradient-brand text-white font-medium text-xs rounded-lg hover:opacity-95 transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Assign New Task</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* My Direct Action Items / Assigned Tasks Queue (3-4 Cards) */}
@@ -622,7 +728,30 @@ export default function TasksPage() {
             return (
               <div
                 key={col.id}
-                className="bg-slate-100/70 rounded-xl p-3 border border-slate-200/80 flex flex-col min-h-[500px]"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  if (dragOverColumn !== col.id) setDragOverColumn(col.id);
+                }}
+                onDragLeave={(e) => {
+                  // Only clear if leaving the column itself
+                  if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                  if (dragOverColumn === col.id) setDragOverColumn(null);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const taskId = e.dataTransfer.getData("text/plain") || draggedTaskId;
+                  setDragOverColumn(null);
+                  setDraggedTaskId(null);
+                  if (taskId) {
+                    handleDropTask(taskId, col.id);
+                  }
+                }}
+                className={`rounded-xl p-3 border transition-all flex flex-col min-h-[500px] ${
+                  dragOverColumn === col.id
+                    ? "bg-indigo-50/70 border-indigo-400 ring-2 ring-indigo-500/20 shadow-md"
+                    : "bg-slate-100/70 border-slate-200/80"
+                }`}
               >
                 {/* Column Header */}
                 <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-3">
@@ -635,7 +764,7 @@ export default function TasksPage() {
                 </div>
 
                 {/* Task Cards in Column */}
-                <div className="space-y-3 flex-1 overflow-y-auto">
+                <div className="space-y-3 flex-1 overflow-y-auto min-h-[80px]">
                   {columnTasks.length === 0 ? (
                     <div className="p-6 text-center text-slate-400 text-[11px] border border-dashed border-slate-200 rounded-lg">
                       No tasks in {col.title}
@@ -654,7 +783,21 @@ export default function TasksPage() {
                       return (
                         <div
                           key={task.id}
-                          className="bg-white rounded-lg border border-slate-200 p-3.5 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between"
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData("text/plain", task.id);
+                            e.dataTransfer.effectAllowed = "move";
+                            setDraggedTaskId(task.id);
+                          }}
+                          onDragEnd={() => {
+                            setDraggedTaskId(null);
+                            setDragOverColumn(null);
+                          }}
+                          className={`bg-white rounded-lg border border-slate-200 p-3.5 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between cursor-grab active:cursor-grabbing select-none ${
+                            draggedTaskId === task.id
+                              ? "opacity-40 scale-95 border-dashed border-indigo-400"
+                              : ""
+                          }`}
                         >
                           <div>
                             {/* Priority & Project Tag */}
@@ -717,7 +860,7 @@ export default function TasksPage() {
                               {canAssignTasks && (
                                 <button
                                   onClick={() => handleOpenEdit(task)}
-                                  className="p-1 text-slate-400 hover:text-indigo-600"
+                                  className="p-1 text-slate-400 hover:text-indigo-600 cursor-pointer"
                                   title="Edit Task"
                                 >
                                   <Edit2 className="w-3 h-3" />
@@ -726,7 +869,7 @@ export default function TasksPage() {
                               {canAssignTasks && (
                                 <button
                                   onClick={() => handleDeleteTask(task)}
-                                  className="p-1 text-slate-400 hover:text-rose-600"
+                                  className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer"
                                   title="Delete Task"
                                 >
                                   <Trash2 className="w-3 h-3" />
@@ -975,11 +1118,10 @@ export default function TasksPage() {
 
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Due Date</label>
-                  <input
-                    type="date"
+                  <DateInput
                     value={formData.dueDate}
-                    onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    onChange={(val) => setFormData({ ...formData, dueDate: val })}
+                    placeholder="DD-MM-YYYY"
                   />
                 </div>
               </div>
@@ -1005,6 +1147,85 @@ export default function TasksPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Task Cleanup & Archiving (Item 3) */}
+      {showCleanupModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center shrink-0">
+                  <Archive className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900">Task Storage Optimization</h3>
+                  <p className="text-[11px] text-slate-500">Archive & clean completed tasks</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowCleanupModal(false)}
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-md cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 text-xs">
+              <p className="text-slate-600 leading-relaxed text-xs">
+                As your team completes tasks, storing past items forever consumes database capacity.
+                You can clean up completed tasks older than a specific age. We recommend downloading a backup first.
+              </p>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1.5">
+                  Select Age Threshold
+                </label>
+                <select
+                  value={cleanupOlderDays}
+                  onChange={(e) => setCleanupOlderDays(Number(e.target.value))}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                >
+                  <option value={15}>Completed older than 15 days</option>
+                  <option value={30}>Completed older than 30 days (Recommended)</option>
+                  <option value={60}>Completed older than 60 days</option>
+                  <option value={90}>Completed older than 90 days</option>
+                </select>
+              </div>
+
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  Exporting creates a comprehensive JSON file backup with full task metadata and assignees for your company records.
+                </p>
+              </div>
+
+              <div className="pt-2 flex flex-col sm:flex-row items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleExportCompletedTasks}
+                  className="w-full sm:flex-1 py-2 px-3 border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                >
+                  <Download className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Download Backup (.JSON)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExecuteCleanup}
+                  disabled={isCleaning}
+                  className="w-full sm:flex-1 py-2 px-3 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                >
+                  {isCleaning ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-3.5 h-3.5" />
+                  )}
+                  <span>{isCleaning ? "Cleaning..." : "Permanently Clean Up"}</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

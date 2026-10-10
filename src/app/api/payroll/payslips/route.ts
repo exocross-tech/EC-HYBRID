@@ -147,27 +147,37 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Salary structure not found for this user" }, { status: 404 });
     }
 
-    const existing = await prisma.payslip.findFirst({
-      where: {
-        salaryId: sal.id,
-        month: targetMonth,
-        year: targetYear,
-      },
-    });
+    const isMilestone = Boolean(body.isMilestonePayout);
+    const customAmt = body.customAmount !== undefined ? parseFloat(body.customAmount) : undefined;
 
-    if (existing) {
-      return NextResponse.json({ error: `Payslip already generated for ${targetMonth}/${targetYear}` }, { status: 400 });
+    if (!isMilestone) {
+      const existing = await prisma.payslip.findFirst({
+        where: {
+          salaryId: sal.id,
+          month: targetMonth,
+          year: targetYear,
+        },
+      });
+
+      if (existing) {
+        return NextResponse.json({ error: `Monthly payslip already generated for ${targetMonth}/${targetYear}` }, { status: 400 });
+      }
     }
+
+    const bPay = isMilestone ? 0 : sal.basicPay;
+    const allow = isMilestone ? (customAmt || 0) : sal.allowances;
+    const ded = isMilestone ? 0 : sal.deductions;
+    const net = isMilestone ? (customAmt || 0) : sal.netSalary;
 
     const slip = await prisma.payslip.create({
       data: {
         salaryId: sal.id,
         month: targetMonth,
         year: targetYear,
-        basicPay: sal.basicPay,
-        allowances: sal.allowances,
-        deductions: sal.deductions,
-        netSalary: sal.netSalary,
+        basicPay: bPay,
+        allowances: allow,
+        deductions: ded,
+        netSalary: net,
         paymentStatus: paymentStatus || "PAID",
         generatedAt: new Date(),
       },

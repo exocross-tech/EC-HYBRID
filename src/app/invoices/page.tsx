@@ -38,6 +38,7 @@ import {
   InvoiceCustomData,
 } from "@/lib/pdfGenerator";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
+import { DateInput } from "@/components/DateInput";
 
 interface Invoice {
   id: string;
@@ -597,7 +598,11 @@ export default function InvoicesPage() {
       const res = await fetch(`/api/invoices/${inv.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "PAID" }),
+        body: JSON.stringify({
+          status: "PAID",
+          paidAmount: inv.totalAmount,
+          paymentDate: new Date().toISOString(),
+        }),
       });
       if (res.ok) {
         setSuccessMsg(`Invoice ${inv.invoiceNumber} marked as PAID`);
@@ -1026,7 +1031,7 @@ export default function InvoicesPage() {
                     <td className="py-3 px-4 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1.5">
                         {/* 1. Mark Paid Quick Action */}
-                        {isAdminOrManager && inv.status !== "PAID" && (
+                        {isAdminOrManager && (inv.status !== "PAID" || (inv.totalAmount - (inv.paidAmount || 0)) > 0) && (
                           <button
                             onClick={() => handleMarkAsPaid(inv)}
                             className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
@@ -1036,12 +1041,12 @@ export default function InvoicesPage() {
                           </button>
                         )}
 
-                        {/* 2. Installment / Partial Payment (Requirement 15) */}
-                        {isAdminOrManager && inv.status !== "PAID" && (
+                        {/* 2. Installment / Partial Payment (Always accessible) */}
+                        {isAdminOrManager && (
                           <button
                             onClick={() => handleOpenInstallmentModal(inv)}
-                            className="p-1.5 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
-                            title="Record Payment / Installment"
+                            className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                            title="Record Payment / View Installments"
                           >
                             <IndianRupee className="w-4 h-4" />
                           </button>
@@ -1124,22 +1129,20 @@ export default function InvoicesPage() {
                 </div>
                 <div>
                   <label className="block text-slate-700 font-semibold mb-1">Issue Date *</label>
-                  <input
-                    type="date"
+                  <DateInput
                     required
                     value={createForm.issueDate}
-                    onChange={(e) => setCreateForm({ ...createForm, issueDate: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-indigo-500 font-medium"
+                    onChange={(val) => setCreateForm({ ...createForm, issueDate: val })}
+                    placeholder="DD-MM-YYYY"
                   />
                 </div>
                 <div>
                   <label className="block text-slate-700 font-semibold mb-1">Valid Until / Due Date *</label>
-                  <input
-                    type="date"
+                  <DateInput
                     required
                     value={createForm.dueDate}
-                    onChange={(e) => setCreateForm({ ...createForm, dueDate: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-indigo-500 font-medium"
+                    onChange={(val) => setCreateForm({ ...createForm, dueDate: val })}
+                    placeholder="DD-MM-YYYY"
                   />
                 </div>
               </div>
@@ -1583,22 +1586,20 @@ export default function InvoicesPage() {
                 </div>
                 <div>
                   <label className="block text-slate-700 font-semibold mb-1">Issue Date *</label>
-                  <input
-                    type="date"
+                  <DateInput
                     required
                     value={editFormData.issueDate}
-                    onChange={(e) => setEditFormData({ ...editFormData, issueDate: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-indigo-500 font-medium"
+                    onChange={(val) => setEditFormData({ ...editFormData, issueDate: val })}
+                    placeholder="DD-MM-YYYY"
                   />
                 </div>
                 <div>
                   <label className="block text-slate-700 font-semibold mb-1">Valid Until / Due Date *</label>
-                  <input
-                    type="date"
+                  <DateInput
                     required
                     value={editFormData.dueDate}
-                    onChange={(e) => setEditFormData({ ...editFormData, dueDate: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-indigo-500 font-medium"
+                    onChange={(val) => setEditFormData({ ...editFormData, dueDate: val })}
+                    placeholder="DD-MM-YYYY"
                   />
                 </div>
                 <div>
@@ -2149,12 +2150,11 @@ export default function InvoicesPage() {
                           </span>
                         )}
                       </div>
-                      <input
-                        type="date"
+                      <DateInput
                         required
                         value={installmentDate}
-                        onChange={(e) => setInstallmentDate(e.target.value)}
-                        className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                        onChange={(val) => setInstallmentDate(val)}
+                        placeholder="DD-MM-YYYY"
                       />
                     </div>
                   </div>
