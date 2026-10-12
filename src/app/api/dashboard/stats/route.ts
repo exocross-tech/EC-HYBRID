@@ -20,6 +20,7 @@ export async function GET() {
         clientsWithServices,
         allTasks,
         recentActivities,
+        allLicenses,
       ] = await Promise.all([
         prisma.user.count(),
         prisma.user.count({ where: { status: "ACTIVE" } }),
@@ -51,6 +52,16 @@ export async function GET() {
           take: 6,
           orderBy: { createdAt: "desc" },
           include: { user: { select: { name: true, role: true } } },
+        }),
+        prisma.productLicense.findMany({
+          where: {
+            billingModel: "SUBSCRIPTION",
+            renewalDate: { not: null },
+          },
+          include: {
+            client: { select: { id: true, name: true, company: true } },
+          },
+          orderBy: { renewalDate: "asc" },
         }),
       ]);
 
@@ -154,6 +165,34 @@ export async function GET() {
         }))
         .sort((a, b) => b.count - a.count);
 
+      // 6. Renewal Radar (Expiring Subscriptions within 30 days)
+      const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+      const expiringSoonLicenses = allLicenses
+        .filter((lic) => {
+          if (!lic.renewalDate) return false;
+          const diff = new Date(lic.renewalDate).getTime() - now.getTime();
+          return diff <= thirtyDaysMs;
+        })
+        .map((lic) => {
+          const diff = new Date(lic.renewalDate!).getTime() - now.getTime();
+          const daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
+          return {
+            id: lic.id,
+            productName: lic.productName,
+            clientName: lic.client?.company || lic.client?.name || "Client",
+            renewalDate: lic.renewalDate,
+            daysLeft,
+            price: lic.price,
+            billingCycle: lic.billingCycle,
+            isExpired: daysLeft < 0,
+          };
+        });
+
+      const renewalRadar = {
+        totalExpiringSoon: expiringSoonLicenses.length,
+        expiringList: expiringSoonLicenses.slice(0, 5),
+      };
+
       return NextResponse.json({
         role: "ADMIN",
         workforce,
@@ -162,6 +201,7 @@ export async function GET() {
         todayTasksData,
         leadSources,
         recentActivities,
+        renewalRadar,
       });
     }
 

@@ -149,6 +149,8 @@ export async function POST(req: NextRequest) {
 
     const isMilestone = Boolean(body.isMilestonePayout);
     const customAmt = body.customAmount !== undefined ? parseFloat(body.customAmount) : undefined;
+    const notes = body.notes ? String(body.notes).trim() : null;
+    const payoutType = isMilestone ? "MILESTONE" : "SALARY";
 
     if (!isMilestone) {
       const existing = await prisma.payslip.findFirst({
@@ -178,6 +180,8 @@ export async function POST(req: NextRequest) {
         allowances: allow,
         deductions: ded,
         netSalary: net,
+        payoutType: payoutType,
+        notes: notes,
         paymentStatus: paymentStatus || "PAID",
         generatedAt: new Date(),
       },
@@ -189,8 +193,10 @@ export async function POST(req: NextRequest) {
     await prisma.notification.create({
       data: {
         userId: sal.userId,
-        title: "New Monthly Payslip Generated",
-        message: `Your payslip for ${targetMonth}/${targetYear} has been generated (Net: ₹${sal.netSalary.toLocaleString()}).`,
+        title: isMilestone ? "Milestone Pay Disbursed" : "New Monthly Payslip Generated",
+        message: isMilestone
+          ? `A milestone payment of ₹${net.toLocaleString("en-IN")} has been disbursed to you.`
+          : `Your payslip for ${targetMonth}/${targetYear} has been generated (Net: ₹${sal.netSalary.toLocaleString()}).`,
         type: "SYSTEM",
         link: "/payroll",
       },
@@ -199,8 +205,10 @@ export async function POST(req: NextRequest) {
     await prisma.auditLog.create({
       data: {
         userId: user.userId,
-        action: "PAYSLIP_GENERATED",
-        details: `Generated payslip for ${sal.user.name} (${targetMonth}/${targetYear})`,
+        action: isMilestone ? "MILESTONE_PAY_DISBURSED" : "PAYSLIP_GENERATED",
+        details: isMilestone
+          ? `Disbursed milestone pay of ₹${net.toLocaleString("en-IN")} to ${sal.user.name}`
+          : `Generated payslip for ${sal.user.name} (${targetMonth}/${targetYear})`,
       },
     });
 

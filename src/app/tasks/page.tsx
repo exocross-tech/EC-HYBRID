@@ -31,6 +31,7 @@ import { formatDate } from "@/lib/formatDate";
 import { AssigneeAvatarCluster } from "@/components/AssigneeAvatarCluster";
 import { MultiAssigneeSelect } from "@/components/MultiAssigneeSelect";
 import { DateInput } from "@/components/DateInput";
+import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 
 interface Task {
   id: string;
@@ -113,6 +114,10 @@ export default function TasksPage() {
   const [showCleanupModal, setShowCleanupModal] = useState(false);
   const [cleanupOlderDays, setCleanupOlderDays] = useState(30);
   const [isCleaning, setIsCleaning] = useState(false);
+
+  // Custom Delete Task Modal state (Item 5)
+  const [deletingTask, setDeletingTask] = useState<Task | null>(null);
+  const [isDeletingTask, setIsDeletingTask] = useState(false);
 
   // Auto-dismiss success notification after 3 seconds
   useEffect(() => {
@@ -406,17 +411,27 @@ export default function TasksPage() {
     }
   };
 
-  const handleDeleteTask = async (task: Task) => {
-    if (!confirm(`Delete task "${task.title}"?`)) return;
+  const handleDeleteTask = (task: Task) => {
+    setDeletingTask(task);
+  };
 
+  const handleConfirmDeleteTask = async () => {
+    if (!deletingTask) return;
+    setIsDeletingTask(true);
     try {
-      const res = await fetch(`/api/tasks/${task.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/tasks/${deletingTask.id}`, { method: "DELETE" });
       if (res.ok) {
-        setActionSuccess(`Task "${task.title}" deleted.`);
+        setActionSuccess(`Task "${deletingTask.title}" deleted.`);
+        setDeletingTask(null);
         fetchTasks();
+      } else {
+        const data = await res.json();
+        setActionError(data.error || "Failed to delete task");
       }
     } catch (err: any) {
       setActionError(err.message || "Network error");
+    } finally {
+      setIsDeletingTask(false);
     }
   };
 
@@ -1229,6 +1244,18 @@ export default function TasksPage() {
           </div>
         </div>
       )}
+
+      {/* Dynamic Custom Delete Task Modal (Item 5) */}
+      <DeleteConfirmModal
+        isOpen={!!deletingTask}
+        title="Delete Work Task"
+        itemName={deletingTask?.title}
+        description="Are you sure you want to permanently delete this task? All sub-checklists, sprint references, and assignee assignments will be removed."
+        confirmText="Delete Task"
+        isDeleting={isDeletingTask}
+        onConfirm={handleConfirmDeleteTask}
+        onCancel={() => setDeletingTask(null)}
+      />
     </AppLayout>
   );
 }
