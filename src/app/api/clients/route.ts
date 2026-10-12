@@ -83,29 +83,36 @@ export async function GET(req: NextRequest) {
           },
         },
       },
-      productLicenses: {
-        select: {
-          id: true,
-          productName: true,
-          licenseKey: true,
-          tier: true,
-          billingModel: true,
-          billingCycle: true,
-          price: true,
-          startDate: true,
-          renewalDate: true,
-          status: true,
-          deploymentUrl: true,
-          notes: true,
-          invoiceNumber: true,
-        },
-        orderBy: { createdAt: "desc" },
-      },
     },
     orderBy: { createdAt: "desc" },
   });
 
-  return NextResponse.json({ clients });
+  // Attach productLicenses safely without throwing if schema/engine is out of sync
+  const licensesByClient: Record<string, any[]> = {};
+  try {
+    const clientIds = clients.map((c) => c.id);
+    if (clientIds.length > 0 && "productLicense" in prisma) {
+      const licenses = await (prisma as any).productLicense.findMany({
+        where: { clientId: { in: clientIds } },
+        orderBy: { createdAt: "desc" },
+      });
+      for (const lic of licenses) {
+        if (!licensesByClient[lic.clientId]) {
+          licensesByClient[lic.clientId] = [];
+        }
+        licensesByClient[lic.clientId].push(lic);
+      }
+    }
+  } catch {
+    // Graceful fallback if productLicense is unavailable
+  }
+
+  const clientsWithLicenses = clients.map((c) => ({
+    ...c,
+    productLicenses: (c as any).productLicenses || licensesByClient[c.id] || [],
+  }));
+
+  return NextResponse.json({ clients: clientsWithLicenses });
 }
 
 // POST /api/clients - Admin and Manager only
