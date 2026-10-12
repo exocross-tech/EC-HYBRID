@@ -234,8 +234,8 @@ export default function ReportsPage() {
         </div>
       ) : report ? (
         <div className="space-y-6">
-          {/* 5-Column Financial KPI Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {/* Financial KPI Grid (2 cols mobile, 5 cols desktop) */}
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
             {/* Total Revenue */}
             <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
               <div className="flex items-center justify-between">
@@ -498,7 +498,64 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Mobile Workload Cards (< md) */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {report.workloadPerEmployee.map((emp) => {
+                const ratio = emp.totalTasks > 0 ? Math.round((emp.completedTasks / emp.totalTasks) * 100) : 0;
+                const isHighLoad = emp.openTasks >= 5;
+
+                return (
+                  <div key={emp.id} className="p-3.5 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-bold text-xs text-slate-900">{emp.name}</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">{emp.department || "General"}</p>
+                      </div>
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold border ${
+                          isHighLoad
+                            ? "bg-rose-50 text-rose-700 border-rose-200"
+                            : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        }`}
+                      >
+                        {isHighLoad ? "High Load" : "Optimal"}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 text-center text-xs bg-slate-50 rounded-lg p-2">
+                      <div>
+                        <span className="text-[9px] text-slate-400 uppercase font-semibold">Total</span>
+                        <p className="font-bold text-slate-800">{emp.totalTasks}</p>
+                      </div>
+                      <div>
+                        <span className="text-[9px] text-emerald-600 uppercase font-semibold">Done</span>
+                        <p className="font-bold text-emerald-700">{emp.completedTasks}</p>
+                      </div>
+                      <div>
+                        <span className="text-[9px] text-rose-600 uppercase font-semibold">Open</span>
+                        <p className="font-bold text-rose-700">{emp.openTasks}</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1 pt-1">
+                      <div className="flex justify-between text-[10px] text-slate-500 font-medium">
+                        <span>Completion</span>
+                        <span>{ratio}%</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-indigo-600 to-blue-500 rounded-full"
+                          style={{ width: `${ratio}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop Table (>= md) */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-600 min-w-[680px]">
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[10px]">
                   <tr>

@@ -395,36 +395,7 @@ export default function ProjectsPage() {
         </div>
 
         {/* View Toggle (Requirement 7) & Create Button */}
-        <div className="flex items-center gap-2 justify-end">
-          <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
-            <button
-              type="button"
-              onClick={() => setViewMode("list")}
-              className={`p-1.5 rounded-md text-xs font-medium flex items-center gap-1 transition-all cursor-pointer ${
-                viewMode === "list"
-                  ? "bg-white text-indigo-700 shadow-xs font-semibold"
-                  : "text-slate-500 hover:text-slate-800"
-              }`}
-              title="Tabular List View (Default)"
-            >
-              <LayoutList className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">List</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("grid")}
-              className={`p-1.5 rounded-md text-xs font-medium flex items-center gap-1 transition-all cursor-pointer ${
-                viewMode === "grid"
-                  ? "bg-white text-indigo-700 shadow-xs font-semibold"
-                  : "text-slate-500 hover:text-slate-800"
-              }`}
-              title="Card Grid View"
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">Grid</span>
-            </button>
-          </div>
-
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
           {canManageProjects && (
             <button
               onClick={() => {
@@ -442,12 +413,42 @@ export default function ProjectsPage() {
                 });
                 setIsAddModalOpen(true);
               }}
-              className="w-full sm:w-auto px-3.5 py-2 sm:py-1.5 gradient-brand text-white font-medium text-xs rounded-lg hover:opacity-95 transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+              className="order-first sm:order-last flex-1 sm:flex-initial px-4 py-2.5 sm:py-2 gradient-brand text-white font-semibold text-xs sm:text-sm rounded-xl hover:opacity-95 transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer shrink-0 min-h-[40px]"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-4 h-4" />
               <span>Create Project</span>
             </button>
           )}
+
+          {/* List vs Grid Toggle - aligned to the RIGHT on mobile */}
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 shrink-0 ml-auto sm:ml-0">
+            <button
+              type="button"
+              onClick={() => setViewMode("list")}
+              className={`p-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer min-h-[36px] min-w-[36px] justify-center ${
+                viewMode === "list"
+                  ? "bg-white text-indigo-700 shadow-xs font-bold"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+              title="Tabular List View (Default)"
+            >
+              <LayoutList className="w-4 h-4" />
+              <span className="hidden sm:inline">List</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("grid")}
+              className={`p-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer min-h-[36px] min-w-[36px] justify-center ${
+                viewMode === "grid"
+                  ? "bg-white text-indigo-700 shadow-xs font-bold"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+              title="Card Grid View"
+            >
+              <LayoutGrid className="w-4 h-4" />
+              <span className="hidden sm:inline">Grid</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -466,7 +467,105 @@ export default function ProjectsPage() {
            TABULAR LIST VIEW (DEFAULT - Requirement 7)
            ========================================================================= */
         <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Mobile Project Cards (< md) */}
+          <div className="md:hidden p-3 space-y-3 bg-slate-50/60">
+            {projects.map((proj) => {
+              const statusBadge =
+                proj.status === "ACTIVE"
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : proj.status === "PLANNING"
+                  ? "bg-blue-50 text-blue-700 border-blue-200"
+                  : proj.status === "COMPLETED"
+                  ? "bg-purple-50 text-purple-700 border-purple-200"
+                  : "bg-amber-50 text-amber-700 border-amber-200";
+
+              const totalTasks = proj.tasks?.length || proj._count?.tasks || 0;
+              const completedTasks = proj.tasks?.filter((t) => t.status === "DONE").length || 0;
+              const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+              return (
+                <div key={proj.id} className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-bold text-sm text-slate-900 truncate">{proj.name}</p>
+                      {proj.client && (
+                        <p className="text-xs text-slate-500 truncate flex items-center gap-1.5 mt-0.5">
+                          <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span>{proj.client.company}</span>
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${statusBadge}`}>
+                        {proj.status}
+                      </span>
+                      <span className="text-xs font-black text-slate-900">
+                        {formatINR(proj.budget)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Task progress bar */}
+                  <div className="space-y-1.5 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                    <div className="flex justify-between text-[11px] text-slate-500 font-medium">
+                      <span>Tasks: {completedTasks}/{totalTasks}</span>
+                      <span className="font-bold text-indigo-600">{progress}%</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-200/70 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-indigo-600 to-blue-500 rounded-full transition-all duration-300"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
+                    <span className="text-slate-400 text-[11px]">
+                      {proj.startDate ? formatDate(proj.startDate) : "No date"}
+                    </span>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setViewingProject(proj)}
+                        className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors"
+                        title="View Details"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleOpenRequirements(proj)}
+                        className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors"
+                        title="Requirements"
+                      >
+                        <FileText className="w-4 h-4" />
+                      </button>
+                      {canManageProjects && (
+                        <button
+                          onClick={() => handleOpenEdit(proj)}
+                          className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-indigo-600 cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors"
+                          title="Edit"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      {isAdmin && (
+                        <button
+                          onClick={() => setConfirmDeleteProject(proj)}
+                          className="p-2 rounded-xl bg-slate-50 hover:bg-rose-50 text-rose-600 cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop Table (>= md) */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs min-w-[850px]">
               <thead className="sticky top-0 bg-slate-50 z-10">
                 <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider">

@@ -593,9 +593,92 @@ export default function PayrollPage() {
             </div>
           </div>
 
-          {/* Payslips Table */}
+          {/* Payslips Content */}
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
-            <div className="overflow-x-auto">
+            {/* Mobile Payslip Cards (< md) */}
+            <div className="md:hidden p-3 space-y-3 bg-slate-50/60">
+              {loading ? (
+                <div className="p-8 text-center text-slate-400 text-xs">
+                  <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-indigo-600" />
+                  Loading payslips...
+                </div>
+              ) : filteredPayslips.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 text-xs">
+                  <FileText className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                  <p className="font-semibold text-slate-700">No payslips found for this period</p>
+                </div>
+              ) : (
+                filteredPayslips.map((slip) => {
+                  const monthName = MONTH_NAMES[(slip.month - 1) % 12];
+                  return (
+                    <div key={slip.id} className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-1.5 font-bold text-sm text-slate-900">
+                            <Calendar className="w-4 h-4 text-indigo-600 shrink-0" />
+                            <span>{monthName} {slip.year}</span>
+                          </div>
+                          {isAdminOrHR && (
+                            <p className="text-xs text-slate-500 font-medium mt-0.5">
+                              {slip.salary?.user?.name} &bull; {slip.salary?.user?.department || "General"}
+                            </p>
+                          )}
+                        </div>
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                            slip.paymentStatus === "PAID"
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : "bg-amber-50 text-amber-700 border border-amber-200"
+                          }`}
+                        >
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>{slip.paymentStatus}</span>
+                        </span>
+                      </div>
+
+                      <div className="bg-slate-50 rounded-xl p-3 text-xs space-y-1.5 border border-slate-100">
+                        <div className="flex items-center justify-between text-slate-600">
+                          <span className="text-[11px]">Basic Pay:</span>
+                          <span className="font-semibold text-slate-800">{formatINR(slip.basicPay, true)}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-emerald-600">
+                          <span className="text-[11px]">Allowances:</span>
+                          <span className="font-semibold">+{formatINR(slip.allowances, true)}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-rose-600">
+                          <span className="text-[11px]">Deductions:</span>
+                          <span className="font-semibold">-{formatINR(slip.deductions, true)}</span>
+                        </div>
+                        <div className="flex items-center justify-between pt-1.5 border-t border-slate-200/60 font-black text-slate-900">
+                          <span className="text-xs">Net Take-Home:</span>
+                          <span className="text-indigo-700 text-base">{formatINR(slip.netSalary, true)}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100">
+                        <button
+                          onClick={() => setSelectedPayslip(slip)}
+                          className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer transition-colors"
+                          title="View Details"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDownloadPDF(slip)}
+                          className="flex-1 py-2 px-3 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold text-xs flex items-center justify-center gap-1.5 min-h-[44px] cursor-pointer transition-colors"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span>Download Payslip PDF</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Desktop Table (>= md) */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-600 min-w-[720px]">
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[10px]">
                   <tr>

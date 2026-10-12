@@ -390,21 +390,117 @@ export default function EmployeesPage() {
             No employees found matching your criteria.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs min-w-[760px]">
-              <thead className="sticky top-0 bg-slate-50 z-10">
-                <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider">
-                  <th className="py-3 px-4">Employee</th>
-                  <th className="py-3 px-4">Role & Status</th>
-                  <th className="py-3 px-4">Department & Title</th>
-                  <th className="py-3 px-4">Contact</th>
-                  <th className="py-3 px-4">Joined Date</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {employees.map((emp) => (
-                  <tr key={emp.id} className="hover:bg-slate-50/70 transition-colors">
+          <>
+            {/* Mobile Employee Cards (< md) */}
+            <div className="md:hidden p-3 space-y-3 bg-slate-50/60">
+              {employees.map((emp) => (
+                <div key={emp.id} className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      {emp.avatarUrl ? (
+                        <img
+                          src={emp.avatarUrl}
+                          alt={emp.name}
+                          className="w-11 h-11 rounded-full object-cover border border-slate-200 shrink-0 shadow-2xs"
+                        />
+                      ) : (
+                        <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-indigo-700 to-blue-500 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs">
+                          {emp.name.charAt(0)}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-bold text-sm text-slate-900 truncate">{emp.name}</p>
+                        <p className="text-xs text-slate-500 truncate mt-0.5">{emp.designation}</p>
+                        <p className="text-[11px] text-slate-400 truncate flex items-center gap-1.5 mt-0.5">
+                          <Building className="w-3 h-3 text-slate-400 shrink-0" />
+                          <span>{emp.department}</span>
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <RoleBadge role={emp.role} />
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          emp.status === "ACTIVE"
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            : emp.status === "RESTRICTED"
+                            ? "bg-rose-50 text-rose-700 border border-rose-200"
+                            : "bg-slate-100 text-slate-500 border border-slate-200 line-through"
+                        }`}
+                      >
+                        {emp.status === "RESTRICTED" ? "RESTRICTED" : emp.status}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
+                    <span className="text-slate-400 text-[11px]">
+                      Joined: <strong className="text-slate-600 font-medium">{formatDate(emp.dateJoined)}</strong>
+                    </span>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setViewingEmployee(emp)}
+                        className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors"
+                        title="View Profile"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      {(isAdmin || (user?.role === "HR" && emp.role !== "ADMIN") || user?.id === emp.id) && (
+                        <button
+                          onClick={() => handleOpenEdit(emp)}
+                          className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-indigo-600 cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors"
+                          title="Edit"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      {(isAdmin || (user?.role === "HR" && emp.role !== "ADMIN")) && emp.id !== user?.id && (
+                        <button
+                          onClick={() => handleToggleRestrict(emp)}
+                          className={`p-2 rounded-xl bg-slate-50 cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors ${
+                            emp.status === "RESTRICTED" ? "text-emerald-600 hover:bg-emerald-50" : "text-amber-600 hover:bg-amber-50"
+                          }`}
+                          title="Toggle Access"
+                        >
+                          {emp.status === "RESTRICTED" ? (
+                            <ShieldCheck className="w-4 h-4" />
+                          ) : (
+                            <ShieldAlert className="w-4 h-4" />
+                          )}
+                        </button>
+                      )}
+                      {isAdmin && emp.id !== user?.id && (
+                        <button
+                          onClick={() => setConfirmDeleteEmployee(emp)}
+                          className="p-2 rounded-xl bg-slate-50 hover:bg-rose-50 text-rose-600 cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table (>= md) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs min-w-[760px]">
+                <thead className="sticky top-0 bg-slate-50 z-10">
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider">
+                    <th className="py-3 px-4">Employee</th>
+                    <th className="py-3 px-4">Role & Status</th>
+                    <th className="py-3 px-4">Department & Title</th>
+                    <th className="py-3 px-4">Contact</th>
+                    <th className="py-3 px-4">Joined Date</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {employees.map((emp) => (
+                    <tr key={emp.id} className="hover:bg-slate-50/70 transition-colors">
                     {/* Employee Name & Avatar */}
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-3">
@@ -546,7 +642,8 @@ export default function EmployeesPage() {
               </tbody>
             </table>
           </div>
-        )}
+        </>
+      )}
       </div>
 
       {/* Modal: View Employee Details (Requirement 2) */}

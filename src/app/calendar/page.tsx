@@ -58,6 +58,13 @@ export default function CalendarPage() {
   const [typeFilter, setTypeFilter] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "agenda">("grid");
 
+  // Auto-switch to responsive agenda mode on small mobile screens on mount
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setViewMode("agenda");
+    }
+  }, []);
+
   // Current view date for calendar navigation
   const [viewDate, setViewDate] = useState(() => {
     const now = new Date();
@@ -468,29 +475,29 @@ export default function CalendarPage() {
           </select>
 
           {/* View Mode Toggle */}
-          <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-slate-50 p-0.5">
+          <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-slate-100 p-1 shrink-0">
             <button
               onClick={() => setViewMode("grid")}
-              className={`p-1.5 rounded-md text-xs font-medium flex items-center gap-1 transition-all ${
+              className={`p-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all min-h-[36px] min-w-[36px] justify-center cursor-pointer ${
                 viewMode === "grid"
                   ? "bg-white text-indigo-700 shadow-2xs font-bold"
                   : "text-slate-500 hover:text-slate-900"
               }`}
               title="7-Column Month Grid View"
             >
-              <Grid className="w-3.5 h-3.5" />
+              <Grid className="w-4 h-4" />
               <span className="hidden sm:inline">Month</span>
             </button>
             <button
               onClick={() => setViewMode("agenda")}
-              className={`p-1.5 rounded-md text-xs font-medium flex items-center gap-1 transition-all ${
+              className={`p-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all min-h-[36px] min-w-[36px] justify-center cursor-pointer ${
                 viewMode === "agenda"
                   ? "bg-white text-indigo-700 shadow-2xs font-bold"
                   : "text-slate-500 hover:text-slate-900"
               }`}
               title="Agenda List View"
             >
-              <List className="w-3.5 h-3.5" />
+              <List className="w-4 h-4" />
               <span className="hidden sm:inline">Agenda</span>
             </button>
           </div>

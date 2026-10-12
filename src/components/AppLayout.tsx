@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 import { Navbar } from "./Navbar";
+import { MobileBottomNav } from "./MobileBottomNav";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -89,7 +90,9 @@ export function AppLayout({ children, title, subtitle }: AppLayoutProps) {
           desktopCollapsed={desktopSidebarCollapsed}
           onToggleDesktopCollapse={handleToggleDesktopCollapse}
         />
-        <main className="flex-1 p-3.5 sm:p-5 md:p-6 overflow-y-auto">{children}</main>
+        <main className="flex-1 p-3 sm:p-5 md:p-6 overflow-y-auto pb-20 lg:pb-6">{children}</main>
+        {/* Mobile Fixed Bottom Navigation Bar (< lg) */}
+        <MobileBottomNav onOpenMenu={() => setMobileMenuOpen(true)} />
       </div>
     </div>
   );

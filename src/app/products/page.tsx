@@ -606,7 +606,7 @@ export default function ProductsPage() {
         </div>
 
         {/* KPI Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {/* Total In-House Products */}
           <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm relative overflow-hidden">
             <div className="flex items-center justify-between">
@@ -727,28 +727,30 @@ export default function ProductsPage() {
           </div>
 
           {/* View Mode Toggle */}
-          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl self-end md:self-auto border border-slate-200">
+          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl self-end md:self-auto border border-slate-200 shrink-0">
             <button
               onClick={() => setViewMode("grid")}
-              className={`p-1.5 rounded-lg transition-all ${
+              className={`p-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all min-h-[36px] min-w-[36px] justify-center cursor-pointer ${
                 viewMode === "grid"
-                  ? "bg-white text-indigo-600 shadow-sm"
+                  ? "bg-white text-indigo-700 shadow-xs font-bold"
                   : "text-slate-500 hover:text-slate-800"
               }`}
               title="Roadmap Cards View"
             >
               <LayoutGrid className="w-4 h-4" />
+              <span className="hidden sm:inline">Grid</span>
             </button>
             <button
               onClick={() => setViewMode("list")}
-              className={`p-1.5 rounded-lg transition-all ${
+              className={`p-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all min-h-[36px] min-w-[36px] justify-center cursor-pointer ${
                 viewMode === "list"
-                  ? "bg-white text-indigo-600 shadow-sm"
+                  ? "bg-white text-indigo-700 shadow-xs font-bold"
                   : "text-slate-500 hover:text-slate-800"
               }`}
               title="Engineering Matrix Table"
             >
               <LayoutList className="w-4 h-4" />
+              <span className="hidden sm:inline">List</span>
             </button>
           </div>
         </div>

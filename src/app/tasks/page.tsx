@@ -477,27 +477,27 @@ export default function TasksPage() {
       <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-xs mb-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 flex-1 min-w-0">
           {/* View Toggle */}
-          <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 shrink-0">
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 w-full sm:w-auto shrink-0">
             <button
               onClick={() => setViewMode("KANBAN")}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all ${
+              className={`flex-1 sm:flex-initial justify-center px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all min-h-[38px] cursor-pointer ${
                 viewMode === "KANBAN"
-                  ? "bg-white text-indigo-900 shadow-xs"
+                  ? "bg-white text-indigo-900 shadow-xs font-bold"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              <Kanban className="w-3.5 h-3.5 text-indigo-600" />
+              <Kanban className="w-4 h-4 text-indigo-600" />
               <span>Kanban Board</span>
             </button>
             <button
               onClick={() => setViewMode("PLANNER")}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all ${
+              className={`flex-1 sm:flex-initial justify-center px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all min-h-[38px] cursor-pointer ${
                 viewMode === "PLANNER"
-                  ? "bg-white text-indigo-900 shadow-xs"
+                  ? "bg-white text-indigo-900 shadow-xs font-bold"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              <ListTodo className="w-3.5 h-3.5 text-indigo-600" />
+              <ListTodo className="w-4 h-4 text-indigo-600" />
               <span>Daily Planner</span>
             </button>
           </div>
@@ -843,13 +843,13 @@ export default function TasksPage() {
                             </div>
 
                             {/* Move Status Dropdown (Accessible to employee for their task & managers) */}
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1.5">
                               <select
                                 value={task.status}
                                 onChange={(e) =>
                                   handleMoveTaskStatus(task, e.target.value as any)
                                 }
-                                className="text-[10px] font-semibold bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-600 cursor-pointer"
+                                className="text-[11px] font-bold bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-2 py-1 text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-600 cursor-pointer min-h-[36px]"
                               >
                                 <option value="TODO">To Do</option>
                                 <option value="IN_PROGRESS">Progress</option>
@@ -860,19 +860,19 @@ export default function TasksPage() {
                               {canAssignTasks && (
                                 <button
                                   onClick={() => handleOpenEdit(task)}
-                                  className="p-1 text-slate-400 hover:text-indigo-600 cursor-pointer"
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-slate-100 cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center transition-colors"
                                   title="Edit Task"
                                 >
-                                  <Edit2 className="w-3 h-3" />
+                                  <Edit2 className="w-3.5 h-3.5" />
                                 </button>
                               )}
                               {canAssignTasks && (
                                 <button
                                   onClick={() => handleDeleteTask(task)}
-                                  className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer"
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center transition-colors"
                                   title="Delete Task"
                                 >
-                                  <Trash2 className="w-3 h-3" />
+                                  <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                               )}
                             </div>

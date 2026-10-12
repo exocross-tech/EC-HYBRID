@@ -106,11 +106,11 @@ export default function DashboardPage() {
       title={`Welcome back, ${user.name.split(" ")[0]}!`}
       subtitle={`EC HYBRID Operations Dashboard • Role: ${user.role} • Dept: ${user.department}`}
     >
-      {/* 1. Dynamic Role Welcome Banner (Gradient Banner & Text Retained; Buttons Removed for all roles) */}
-      <div className="gradient-brand rounded-2xl p-4 sm:p-6 text-white shadow-lg mb-5 sm:mb-6 relative overflow-hidden">
+      {/* 1. Dynamic Role Welcome Banner (Mobile: Compact & Focused; Desktop: Full Gradient Banner) */}
+      <div className="gradient-brand rounded-2xl p-4 md:p-6 text-white shadow-xs md:shadow-lg mb-4 md:mb-6 relative overflow-hidden">
         <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold text-indigo-100 mb-3">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-300" />
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 md:px-3 md:py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[11px] md:text-xs font-semibold text-indigo-100 mb-2 md:mb-3">
+            <Sparkles className="w-3 h-3 md:w-3.5 md:h-3.5 text-indigo-300" />
             <span>
               {user.role === "ADMIN" && "Executive Operations Console"}
               {user.role === "MANAGER" && `${user.department} Department Hub`}
@@ -119,14 +119,14 @@ export default function DashboardPage() {
             </span>
           </div>
 
-          <h2 className="text-xl md:text-2xl font-black tracking-tight leading-tight">
-            {user.role === "ADMIN" && "Full Governance, Financial Health & Real-Time Org Telemetry"}
-            {user.role === "MANAGER" && "Sprint Execution, Department Workload & Approvals"}
-            {user.role === "HR" && "Workforce Headcount, Leave Pipeline & Payroll Disbursal"}
-            {user.role === "EMPLOYEE" && "Personal Schedule, Active Tasks & Career Records"}
+          <h2 className="text-base sm:text-lg md:text-2xl font-extrabold md:font-black tracking-tight leading-snug">
+            {user.role === "ADMIN" && "Full Governance & Real-Time Telemetry"}
+            {user.role === "MANAGER" && "Sprint Execution & Department Workload"}
+            {user.role === "HR" && "Workforce Headcount & Payroll Disbursal"}
+            {user.role === "EMPLOYEE" && "Personal Schedule & Active Tasks"}
           </h2>
 
-          <p className="text-xs md:text-sm text-indigo-100 mt-2 leading-relaxed">
+          <p className="text-[11px] sm:text-xs md:text-sm text-indigo-100/90 mt-1 md:mt-2 leading-relaxed line-clamp-2 md:line-clamp-none">
             {user.role === "ADMIN" &&
               "Live overview of client billings, employee payroll obligations, active deliverables, and operational audit logs."}
             {user.role === "MANAGER" &&
@@ -139,7 +139,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Decorative ambient circle glow */}
-        <div className="absolute -right-16 -top-16 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -right-16 -top-16 w-48 md:w-64 h-48 md:h-64 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
       </div>
 
       {/* 2. Role-Specific Metric Cards (For Manager, HR, and Employee) */}
@@ -159,16 +159,16 @@ export default function DashboardPage() {
           </div>
 
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {[1, 2, 3, 4].map((i) => (
                 <div
                   key={i}
-                  className="h-24 bg-white rounded-xl border border-slate-200 animate-pulse"
+                  className="h-20 sm:h-24 bg-white rounded-xl border border-slate-200 animate-pulse"
                 />
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {/* MANAGER KPI CARDS */}
               {user.role === "MANAGER" && stats?.metrics && (
                 <>

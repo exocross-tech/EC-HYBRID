@@ -220,7 +220,7 @@ export function Sidebar({
 
       {/* 2. Mobile Off-Canvas Drawer (< lg) */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 bg-white flex flex-col h-full shadow-2xl select-none overflow-hidden transition-transform duration-300 ease-in-out lg:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-white flex flex-col h-full shadow-2xl select-none overflow-hidden transition-transform duration-300 ease-in-out lg:hidden safe-area-bottom ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >

@@ -383,48 +383,48 @@ export default function ClientsPage() {
           </select>
         </div>
 
-        {/* Action Controls & View Switcher (Requirement 5) */}
-        <div className="flex items-center gap-2 justify-end">
-          {/* List vs Grid Toggle */}
-          <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+        {/* Action Controls & View Switcher */}
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+          {/* Add Client Button (order-first on mobile so it takes the left/prominent spot, sm:order-last on desktop) */}
+          {canManageClients && (
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="order-first sm:order-last flex-1 sm:flex-initial px-3.5 py-2 sm:py-1.5 gradient-brand text-white font-semibold text-xs rounded-xl hover:opacity-95 transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer shrink-0 min-h-[38px]"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add New Client</span>
+            </button>
+          )}
+
+          {/* List vs Grid Toggle - aligned to the RIGHT on mobile */}
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 shrink-0 ml-auto sm:ml-0">
             <button
               type="button"
               onClick={() => setViewMode("list")}
-              className={`p-1.5 rounded-md text-xs font-medium flex items-center gap-1 transition-all cursor-pointer ${
+              className={`p-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer min-h-[36px] min-w-[36px] justify-center ${
                 viewMode === "list"
-                  ? "bg-white text-indigo-700 shadow-xs font-semibold"
+                  ? "bg-white text-indigo-700 shadow-xs font-bold"
                   : "text-slate-500 hover:text-slate-800"
               }`}
               title="Tabular List View (Default)"
             >
-              <LayoutList className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">List</span>
+              <LayoutList className="w-4 h-4" />
+              <span className="hidden sm:inline">List</span>
             </button>
             <button
               type="button"
               onClick={() => setViewMode("grid")}
-              className={`p-1.5 rounded-md text-xs font-medium flex items-center gap-1 transition-all cursor-pointer ${
+              className={`p-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer min-h-[36px] min-w-[36px] justify-center ${
                 viewMode === "grid"
-                  ? "bg-white text-indigo-700 shadow-xs font-semibold"
+                  ? "bg-white text-indigo-700 shadow-xs font-bold"
                   : "text-slate-500 hover:text-slate-800"
               }`}
               title="Card Grid View"
             >
-              <LayoutGrid className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">Grid</span>
+              <LayoutGrid className="w-4 h-4" />
+              <span className="hidden sm:inline">Grid</span>
             </button>
           </div>
-
-          {/* Add Client Button */}
-          {canManageClients && (
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="w-full sm:w-auto px-3.5 py-2 sm:py-1.5 gradient-brand text-white font-medium text-xs rounded-lg hover:opacity-95 transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add New Client</span>
-            </button>
-          )}
         </div>
       </div>
 
@@ -443,7 +443,173 @@ export default function ClientsPage() {
            TABULAR LIST VIEW (DEFAULT - Requirement 5)
            ========================================================================= */
         <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Mobile Client Cards (< md) */}
+          <div className="md:hidden p-3 space-y-3.5 bg-slate-50/70">
+            {clients.map((client) => {
+              const clientTypeBadge =
+                client.clientType === "SERVICE"
+                  ? "bg-blue-50 text-blue-700 border-blue-200/80"
+                  : client.clientType === "PRODUCT"
+                  ? "bg-indigo-50 text-indigo-700 border-indigo-200/80"
+                  : "bg-purple-50 text-purple-700 border-purple-200/80";
+
+              const clientTypeLabel =
+                client.clientType === "SERVICE"
+                  ? "IT Services"
+                  : client.clientType === "PRODUCT"
+                  ? "Product Sales"
+                  : "Hybrid";
+
+              const statusBadge =
+                client.status === "ACTIVE"
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : client.status === "LEAD"
+                  ? "bg-amber-50 text-amber-700 border-amber-200"
+                  : "bg-slate-100 text-slate-600 border-slate-200";
+
+              const statusDot =
+                client.status === "ACTIVE"
+                  ? "bg-emerald-500"
+                  : client.status === "LEAD"
+                  ? "bg-amber-500"
+                  : "bg-slate-400";
+
+              return (
+                <div
+                  key={client.id}
+                  className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-3 transition-all hover:border-slate-300"
+                >
+                  {/* Top Section: Avatar, Company, Contact Person, Status Pills */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-slate-900 via-indigo-950 to-indigo-800 text-white flex items-center justify-center font-bold text-base shrink-0 shadow-xs border border-indigo-900/30">
+                        {client.company.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="font-bold text-sm text-slate-900 truncate tracking-tight">
+                          {client.company}
+                        </h4>
+                        <p className="text-xs font-medium text-slate-500 truncate flex items-center gap-1 mt-0.5">
+                          <span className="text-slate-400">Contact:</span>
+                          <span className="text-slate-700 font-semibold">{client.name}</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${statusBadge}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${statusDot}`} />
+                        {client.status}
+                      </span>
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${clientTypeBadge}`}>
+                        {clientTypeLabel}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Contact Channels (One-tap Call & Email) */}
+                  {(client.phone || client.email) && (
+                    <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                      {client.phone && (
+                        <a
+                          href={`tel:${client.phone}`}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50/80 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/60 text-[11px] font-semibold transition-all active:scale-95"
+                          title="Call client phone"
+                        >
+                          <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span className="truncate max-w-[130px]">{client.phone}</span>
+                        </a>
+                      )}
+                      {client.email && (
+                        <a
+                          href={`mailto:${client.email}`}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-50/80 hover:bg-sky-100 text-sky-700 border border-sky-200/60 text-[11px] font-semibold transition-all active:scale-95 min-w-0"
+                          title="Send email to client"
+                        >
+                          <Mail className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                          <span className="truncate max-w-[150px]">{client.email}</span>
+                        </a>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Metadata Row: Address & Projects Trigger */}
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2 text-xs">
+                    {client.address ? (
+                      <div className="flex items-center gap-1 text-[11px] text-slate-500 min-w-0">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="truncate max-w-[180px]">{client.address}</span>
+                      </div>
+                    ) : client.leadSource ? (
+                      <span className="text-[11px] text-slate-400 truncate">
+                        Source: <span className="text-slate-600 font-medium">{client.leadSource}</span>
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-slate-400 italic">No address on file</span>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setProjectsModalClient(client)}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 text-[11px] font-bold transition-colors cursor-pointer shrink-0"
+                      title="View connected projects"
+                    >
+                      <FolderGit2 className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>{client.projects?.length || 0} {client.projects?.length === 1 ? "Project" : "Projects"}</span>
+                    </button>
+                  </div>
+
+                  {/* Bottom Actions: View Profile (Primary) & Action Icons */}
+                  <div className="pt-2.5 border-t border-slate-100 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setViewingClient(client)}
+                      className="flex-1 py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs active:scale-[0.98] transition-all min-h-[40px]"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>View Profile</span>
+                    </button>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {canManageClients && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEdit(client)}
+                          className="p-2 rounded-xl bg-slate-50 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 border border-slate-200/80 hover:border-indigo-200 cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center transition-all"
+                          title="Edit Client"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      {isAdmin && client.status !== "INACTIVE" && (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmSoftDeleteClient(client)}
+                          className="p-2 rounded-xl bg-slate-50 hover:bg-amber-50 text-slate-600 hover:text-amber-600 border border-slate-200/80 hover:border-amber-200 cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center transition-all"
+                          title="Archive Client"
+                        >
+                          <Archive className="w-4 h-4" />
+                        </button>
+                      )}
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteClient(client)}
+                          className="p-2 rounded-xl bg-slate-50 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200/80 hover:border-rose-200 cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center transition-all"
+                          title="Delete Client"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop Table (>= md) */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs min-w-[800px]">
               <thead className="sticky top-0 bg-slate-50 z-10">
                 <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider">

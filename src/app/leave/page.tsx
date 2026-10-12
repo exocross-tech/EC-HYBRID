@@ -266,10 +266,89 @@ export default function LeavePage() {
             No leave requests found matching criteria.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs min-w-[650px]">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider">
+          <>
+            {/* Mobile Leave Cards (< md) */}
+            <div className="md:hidden p-3 space-y-3 bg-slate-50/60">
+              {leaves.map((leave) => {
+                const statusBadge =
+                  leave.status === "APPROVED"
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                    : leave.status === "PENDING"
+                    ? "bg-amber-50 text-amber-700 border-amber-200"
+                    : "bg-rose-50 text-rose-700 border-rose-200";
+
+                const typeBadge =
+                  leave.leaveType === "CASUAL"
+                    ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                    : leave.leaveType === "SICK"
+                    ? "bg-rose-50 text-rose-700 border-rose-200"
+                    : "bg-slate-100 text-slate-700 border-slate-200";
+
+                return (
+                  <div key={leave.id} className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-700 to-blue-500 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs">
+                          {leave.user.name.charAt(0)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-sm text-slate-900 truncate">{leave.user.name}</p>
+                          <p className="text-xs text-slate-500 truncate mt-0.5">{leave.user.department}</p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusBadge}`}>
+                          {leave.status}
+                        </span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${typeBadge}`}>
+                          {leave.leaveType}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 space-y-1.5 border border-slate-100">
+                      <div className="flex items-center gap-1.5 font-semibold text-slate-800 text-xs">
+                        <Calendar className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                        <span>{formatDate(leave.startDate)} &mdash; {formatDate(leave.endDate)}</span>
+                      </div>
+                      {leave.reason && (
+                        <p className="text-xs text-slate-600 italic line-clamp-2 leading-relaxed">
+                          &ldquo;{leave.reason}&rdquo;
+                        </p>
+                      )}
+                      {leave.reviewerComment && (
+                        <p className="text-[11px] text-indigo-700 font-semibold pt-1 border-t border-slate-200/60">
+                          Reviewer Note: {leave.reviewerComment}
+                        </p>
+                      )}
+                    </div>
+
+                    {canReviewLeaves && leave.status === "PENDING" && (
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          onClick={() => handleOpenReview(leave, "APPROVED")}
+                          className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 font-bold text-xs transition-colors cursor-pointer text-center min-h-[44px]"
+                        >
+                          Approve Request
+                        </button>
+                        <button
+                          onClick={() => handleOpenReview(leave, "REJECTED")}
+                          className="flex-1 py-2.5 px-3 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 font-bold text-xs transition-colors cursor-pointer text-center min-h-[44px]"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop Table (>= md) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs min-w-[650px]">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider">
                   <th className="py-3 px-4">Employee</th>
                   <th className="py-3 px-4">Type</th>
                   <th className="py-3 px-4">Date Range</th>
@@ -374,7 +453,8 @@ export default function LeavePage() {
               </tbody>
             </table>
           </div>
-        )}
+        </>
+      )}
       </div>
 
       {/* Modal: Request Leave */}
