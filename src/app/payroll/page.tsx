@@ -405,70 +405,70 @@ export default function PayrollPage() {
 
       {/* Top Metrics Cards (Admin / HR) */}
       {isAdminOrHR && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 mb-5 sm:mb-6">
+          <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-5 shadow-xs">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500">Monthly Payroll Run</span>
-              <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                <IndianRupee className="w-4 h-4" />
+              <span className="text-[11px] sm:text-xs font-semibold text-slate-500 truncate">Monthly Payroll</span>
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                <IndianRupee className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
             </div>
-            <p className="text-2xl font-bold text-slate-900 mt-2">{formatINR(totalMonthlyPayroll)}</p>
-            <p className="text-[11px] text-indigo-600 mt-1 font-medium">Total active staff commitment</p>
+            <p className="text-lg sm:text-2xl font-bold text-slate-900 mt-1 sm:mt-2 truncate">{formatINR(totalMonthlyPayroll)}</p>
+            <p className="text-[10px] sm:text-[11px] text-indigo-600 mt-0.5 sm:mt-1 font-medium truncate">Total staff commitment</p>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
+          <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-5 shadow-xs">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500">Active Staff Enrolled</span>
-              <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                <UserCheck className="w-4 h-4" />
+              <span className="text-[11px] sm:text-xs font-semibold text-slate-500 truncate">Staff Enrolled</span>
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                <UserCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
             </div>
-            <p className="text-2xl font-bold text-slate-900 mt-2">{salaries.length}</p>
-            <p className="text-[11px] text-slate-500 mt-1">Configured salary accounts</p>
+            <p className="text-lg sm:text-2xl font-bold text-slate-900 mt-1 sm:mt-2">{salaries.length}</p>
+            <p className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 sm:mt-1 truncate">Configured accounts</p>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
+          <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-5 shadow-xs">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500">Average Net Salary</span>
-              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <TrendingUp className="w-4 h-4" />
+              <span className="text-[11px] sm:text-xs font-semibold text-slate-500 truncate">Avg Net Salary</span>
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
             </div>
-            <p className="text-2xl font-bold text-slate-900 mt-2">{formatINR(avgSalary)}</p>
-            <p className="text-[11px] text-emerald-600 mt-1 font-medium">Per employee average</p>
+            <p className="text-lg sm:text-2xl font-bold text-slate-900 mt-1 sm:mt-2 truncate">{formatINR(avgSalary)}</p>
+            <p className="text-[10px] sm:text-[11px] text-emerald-600 mt-0.5 sm:mt-1 font-medium truncate">Per employee</p>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
+          <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-5 shadow-xs">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500">Generated This Month</span>
-              <div className="w-8 h-8 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center">
-                <FileText className="w-4 h-4" />
+              <span className="text-[11px] sm:text-xs font-semibold text-slate-500 truncate">This Month</span>
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center shrink-0">
+                <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
             </div>
-            <p className="text-2xl font-bold text-slate-900 mt-2">{currentMonthSlipsCount}</p>
-            <p className="text-[11px] text-slate-500 mt-1">Current billing cycle payslips</p>
+            <p className="text-lg sm:text-2xl font-bold text-slate-900 mt-1 sm:mt-2">{currentMonthSlipsCount}</p>
+            <p className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 sm:mt-1 truncate">Current billing cycle</p>
           </div>
         </div>
       )}
 
       {/* Employee & Manager Top Profile & Salary Card */}
       {isPersonalView && payslips.length > 0 && (
-        <div className="bg-gradient-to-r from-slate-900 to-indigo-950 rounded-2xl p-6 text-white mb-6 shadow-md border border-slate-800">
+        <div className="bg-gradient-to-r from-slate-900 to-indigo-950 rounded-2xl p-4 sm:p-6 text-white mb-5 sm:mb-6 shadow-md border border-slate-800">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-xs font-semibold uppercase tracking-wider text-indigo-300">Compensation Package</span>
                 <span className="text-[10px] bg-indigo-500/30 text-indigo-200 px-2 py-0.5 rounded-full border border-indigo-400/30">Active</span>
               </div>
-              <h2 className="text-xl font-bold">{user?.name}</h2>
+              <h2 className="text-lg sm:text-xl font-bold">{user?.name}</h2>
               <p className="text-xs text-slate-300 mt-0.5">
                 {user?.designation || "Staff"} &bull; {user?.department || "General"} Department
               </p>
             </div>
-            <div className="bg-white/10 backdrop-blur-xs rounded-xl p-4 border border-white/15 text-right md:text-left">
+            <div className="bg-white/10 backdrop-blur-xs rounded-xl p-3.5 sm:p-4 border border-white/15 text-left md:text-right">
               <span className="text-[11px] text-indigo-200 font-medium">Monthly Take-Home Salary</span>
-              <p className="text-2xl font-extrabold text-white mt-1 flex items-center gap-1 md:justify-start justify-end">
+              <p className="text-xl sm:text-2xl font-extrabold text-white mt-1 flex items-center gap-1 md:justify-end justify-start">
                 {formatINR(payslips[0].netSalary, true)}
               </p>
               <p className="text-[10px] text-slate-300 mt-0.5">Direct Deposit to registered bank account</p>
@@ -480,31 +480,33 @@ export default function PayrollPage() {
       {/* Tab Navigation & Action Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 mb-5">
         {isAdminOrHR ? (
-          <div className="flex items-center gap-1.5 sm:gap-2 bg-slate-100 p-1 rounded-xl w-full sm:w-fit overflow-x-auto">
+          <div className="flex items-center gap-1.5 sm:gap-2 bg-slate-100 p-1 rounded-xl w-full sm:w-fit">
             <button
               onClick={() => setActiveTab("payslips")}
-              className={`px-3 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all shrink-0 cursor-pointer ${
+              className={`flex-1 sm:flex-initial px-3 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer min-h-[38px] ${
                 activeTab === "payslips"
                   ? "bg-white text-indigo-700 shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              <div className="flex items-center gap-2">
-                <FileText className="w-3.5 h-3.5" />
-                <span>Payslips ({payslips.length})</span>
+              <div className="flex items-center justify-center gap-1.5 sm:gap-2">
+                <FileText className="w-3.5 h-3.5 shrink-0" />
+                <span className="sm:inline hidden">Payslips ({payslips.length})</span>
+                <span className="inline sm:hidden">Payslips</span>
               </div>
             </button>
             <button
               onClick={() => setActiveTab("structures")}
-              className={`px-3 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all shrink-0 cursor-pointer ${
+              className={`flex-1 sm:flex-initial px-3 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer min-h-[38px] ${
                 activeTab === "structures"
                   ? "bg-white text-indigo-700 shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              <div className="flex items-center gap-2">
-                <CreditCard className="w-3.5 h-3.5" />
-                <span>Salary Structures ({salaries.length})</span>
+              <div className="flex items-center justify-center gap-1.5 sm:gap-2">
+                <CreditCard className="w-3.5 h-3.5 shrink-0" />
+                <span className="sm:inline hidden">Salary Structures ({salaries.length})</span>
+                <span className="inline sm:hidden">Structures</span>
               </div>
             </button>
           </div>
@@ -830,7 +832,78 @@ export default function PayrollPage() {
               </p>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Mobile Salary Structure Cards (< md) */}
+            <div className="md:hidden p-3 space-y-3 bg-slate-50/70">
+              {salaries.map((sal) => (
+                <div key={sal.id} className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-bold text-sm text-slate-900 truncate">{sal.user.name}</div>
+                      <div className="text-xs text-slate-500 font-medium truncate mt-0.5">
+                        {sal.user.designation || "Staff"} &bull; <span className="text-indigo-600 font-semibold">{sal.user.department || "General"}</span>
+                      </div>
+                      <div className="text-[11px] text-slate-400 truncate mt-0.5">{sal.user.email}</div>
+                    </div>
+                    <div>
+                      {user?.role === "HR" && sal.user.role === "ADMIN" ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-800 rounded-full text-[10px] font-bold border border-amber-200">
+                          <ShieldAlert className="w-3 h-3 text-amber-600" />
+                          <span>Protected</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          Active
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-xl p-3 text-xs space-y-1.5 border border-slate-100">
+                    <div className="flex items-center justify-between text-slate-600">
+                      <span className="text-[11px]">Basic Salary:</span>
+                      <span className="font-semibold text-slate-800">
+                        {sal.netSalary === 0 ? "₹0 (Discretionary)" : formatINR(sal.basicPay, true)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-emerald-600">
+                      <span className="text-[11px]">Allowances:</span>
+                      <span className="font-semibold">
+                        {sal.netSalary === 0 ? "—" : `+${formatINR(sal.allowances, true)}`}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-rose-600">
+                      <span className="text-[11px]">Deductions:</span>
+                      <span className="font-semibold">
+                        {sal.netSalary === 0 ? "—" : `-${formatINR(sal.deductions, true)}`}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between pt-1.5 border-t border-slate-200/60 font-black text-slate-900">
+                      <span className="text-xs">Net Take-Home:</span>
+                      <span className="text-indigo-700 text-sm font-black">
+                        {sal.netSalary === 0 ? "Milestone Pay" : formatINR(sal.netSalary, true)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="pt-1 border-t border-slate-100 flex items-center justify-end">
+                    {user?.role === "HR" && sal.user.role === "ADMIN" ? (
+                      <span className="text-[11px] text-slate-400 italic">Admin protected package</span>
+                    ) : (
+                      <button
+                        onClick={() => handleOpenEdit(sal)}
+                        className="w-full py-2 px-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 min-h-[40px] cursor-pointer transition-colors shadow-2xs"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                        <span>Edit Structure</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table (>= md) */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-600 min-w-[700px]">
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[10px]">
                   <tr>

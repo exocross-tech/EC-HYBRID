@@ -232,29 +232,35 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Tab Navigation (2 Tabs only) */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5 sm:gap-2 bg-slate-100 p-1 rounded-xl w-full sm:w-fit mb-6">
+      {/* Tab Navigation (2 Tabs only: Compact on mobile with icon priority, full on desktop) */}
+      <div className="flex items-center gap-1.5 sm:gap-2 bg-slate-100 p-1 rounded-xl w-full sm:w-fit mb-5 sm:mb-6">
         <button
+          type="button"
           onClick={() => setActiveTab("profile")}
-          className={`flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+          className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer min-h-[38px] ${
             activeTab === "profile"
               ? "bg-white text-indigo-700 shadow-xs"
               : "text-slate-600 hover:text-slate-900"
           }`}
+          title="Company & Legal Identity"
         >
-          <Building2 className="w-3.5 h-3.5" />
-          <span>Company & Legal Identity</span>
+          <Building2 className="w-4 h-4 shrink-0 text-indigo-600" />
+          <span className="sm:inline hidden">Company & Legal Identity</span>
+          <span className="inline sm:hidden text-[11px] font-semibold truncate">Company Identity</span>
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab("banking")}
-          className={`flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+          className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer min-h-[38px] ${
             activeTab === "banking"
               ? "bg-white text-indigo-700 shadow-xs"
               : "text-slate-600 hover:text-slate-900"
           }`}
+          title="Invoicing & Bank Remittance"
         >
-          <CreditCard className="w-3.5 h-3.5" />
-          <span>Invoicing & Bank Remittance</span>
+          <CreditCard className="w-4 h-4 shrink-0 text-indigo-600" />
+          <span className="sm:inline hidden">Invoicing & Bank Remittance</span>
+          <span className="inline sm:hidden text-[11px] font-semibold truncate">Bank Remittance</span>
         </button>
       </div>
 
@@ -269,9 +275,9 @@ export default function SettingsPage() {
           {activeTab === "profile" && (
             <div className="space-y-6">
               {/* Brand Logo Upload & Management */}
-              <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs">
+              <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 shadow-xs">
                 <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
-                  <ImageIcon className="w-5 h-5 text-indigo-600" />
+                  <ImageIcon className="w-5 h-5 text-indigo-600 shrink-0" />
                   <div>
                     <h3 className="text-sm font-bold text-slate-900">Company Logo for Invoices & Quotations</h3>
                     <p className="text-xs text-slate-500">
@@ -280,10 +286,10 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center gap-6">
+                <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
                   {/* Logo Preview */}
                   <div className="flex flex-col items-center gap-2">
-                    <div className="w-24 h-24 rounded-2xl bg-slate-50 border-2 border-dashed border-slate-300 flex items-center justify-center p-2 overflow-hidden shadow-inner">
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-slate-50 border-2 border-dashed border-slate-300 flex items-center justify-center p-2 overflow-hidden shadow-inner">
                       {form.logoUrl ? (
                         <img
                           src={form.logoUrl}
@@ -298,12 +304,12 @@ export default function SettingsPage() {
                   </div>
 
                   {/* Upload Actions */}
-                  <div className="flex-1 space-y-3 text-xs">
-                    <p className="text-slate-600 leading-relaxed">
+                  <div className="flex-1 space-y-3 text-xs w-full text-center sm:text-left">
+                    <p className="text-slate-600 leading-relaxed text-[11px] sm:text-xs">
                       Recommended size: Square or landscape (PNG, SVG, JPG, WebP) with transparent or white background. Max size: 3MB.
                     </p>
 
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 sm:gap-3">
                       <input
                         type="file"
                         ref={fileInputRef}
@@ -314,7 +320,7 @@ export default function SettingsPage() {
                       />
                       <label
                         htmlFor="logo-upload-input"
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl font-bold cursor-pointer transition-colors"
+                        className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl font-bold cursor-pointer transition-colors text-xs"
                       >
                         <Upload className="w-4 h-4" />
                         <span>Upload New Logo File</span>
@@ -324,7 +330,7 @@ export default function SettingsPage() {
                         <button
                           type="button"
                           onClick={handleResetLogo}
-                          className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl font-semibold transition-colors"
+                          className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl font-semibold transition-colors text-xs cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                           <span>Reset to Default</span>
@@ -336,9 +342,9 @@ export default function SettingsPage() {
               </div>
 
               {/* Brand & Legal Entity Identity */}
-              <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs">
+              <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 shadow-xs">
                 <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
-                  <Building2 className="w-5 h-5 text-indigo-600" />
+                  <Building2 className="w-5 h-5 text-indigo-600 shrink-0" />
                   <div>
                     <h3 className="text-sm font-bold text-slate-900">Brand & Legal Entity Identity</h3>
                     <p className="text-xs text-slate-500">Corporate naming displayed across all headers, payslips, and invoices.</p>
@@ -411,9 +417,9 @@ export default function SettingsPage() {
               </div>
 
               {/* Tax & Registration Identifiers */}
-              <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs">
+              <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 shadow-xs">
                 <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
-                  <Shield className="w-5 h-5 text-indigo-600" />
+                  <Shield className="w-5 h-5 text-indigo-600 shrink-0" />
                   <div>
                     <h3 className="text-sm font-bold text-slate-900">Legal Tax Identification Numbers</h3>
                     <p className="text-xs text-slate-500">Government registrations printed on invoices (Optional for startups).</p>
@@ -460,9 +466,9 @@ export default function SettingsPage() {
               </div>
 
               {/* Registered Corporate Address */}
-              <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs">
+              <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 shadow-xs">
                 <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
-                  <MapPin className="w-5 h-5 text-indigo-600" />
+                  <MapPin className="w-5 h-5 text-indigo-600 shrink-0" />
                   <div>
                     <h3 className="text-sm font-bold text-slate-900">Registered Office Address</h3>
                     <p className="text-xs text-slate-500">Corporate location embedded into official bills and legal contracts.</p>
@@ -525,9 +531,9 @@ export default function SettingsPage() {
           {/* TAB 2: INVOICING & BANK REMITTANCE (LIVE PREVIEW REMOVED) */}
           {activeTab === "banking" && (
             <div className="space-y-6">
-              <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs">
+              <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 shadow-xs">
                 <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
-                  <Landmark className="w-5 h-5 text-indigo-600" />
+                  <Landmark className="w-5 h-5 text-indigo-600 shrink-0" />
                   <div>
                     <h3 className="text-sm font-bold text-slate-900">Corporate Bank Account for Client Remittance</h3>
                     <p className="text-xs text-slate-500">
