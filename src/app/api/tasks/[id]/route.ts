@@ -112,9 +112,20 @@ export async function PUT(req: NextRequest, context: RouteContext) {
         return NextResponse.json({ error: "Employees can only modify task status" }, { status: 400 });
       }
 
+      const isCompleting = body.status === "DONE";
+      const isReopening = existing.status === "DONE" && body.status !== "DONE";
+      const completedAtUpdate = isCompleting
+        ? new Date()
+        : isReopening
+        ? null
+        : existing.completedAt;
+
       const updated = await prisma.task.update({
         where: { id },
-        data: { status: body.status },
+        data: {
+          status: body.status,
+          completedAt: completedAtUpdate,
+        },
         include: {
           project: { select: { id: true, name: true, type: true } },
           assignedTo: { select: { id: true, name: true, email: true } },
@@ -145,7 +156,16 @@ export async function PUT(req: NextRequest, context: RouteContext) {
     if (body.title) updateData.title = body.title;
     if (body.description !== undefined) updateData.description = body.description;
     if (body.projectId) updateData.projectId = body.projectId;
-    if (body.status) updateData.status = body.status;
+    if (body.status) {
+      updateData.status = body.status;
+      if (body.status === "DONE") {
+        if (existing.status !== "DONE" || !existing.completedAt) {
+          updateData.completedAt = new Date();
+        }
+      } else if (existing.status === "DONE") {
+        updateData.completedAt = null;
+      }
+    }
     if (body.priority) updateData.priority = body.priority;
     if (body.dueDate !== undefined) updateData.dueDate = body.dueDate ? new Date(body.dueDate) : null;
 

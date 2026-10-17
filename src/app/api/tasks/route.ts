@@ -149,6 +149,7 @@ export async function POST(req: NextRequest) {
         assignedToId: primaryAssigneeId,
         assignees: assigneesJson,
         status: taskStatus || "TODO",
+        completedAt: taskStatus === "DONE" ? new Date() : null,
         priority: priority || "MEDIUM",
         dueDate: dueDate ? new Date(dueDate) : null,
       },

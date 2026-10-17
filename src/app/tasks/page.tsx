@@ -61,6 +61,7 @@ interface Task {
   }>;
   createdAt?: string;
   updatedAt?: string;
+  completedAt?: string | null;
 }
 
 interface ProjectOption {
@@ -290,14 +291,44 @@ export default function TasksPage() {
     });
   };
 
+  // Column-aware sorting engine:
+  // 1. Completed column ("DONE"): Ordered by most recently completed on top (completedAt desc, fallback updatedAt desc)
+  // 2. Active columns ("TODO", "IN_PROGRESS", "REVIEW"): Due date chronological order, with same-day recency
+  const sortColumnTasks = (taskList: Task[], status: Task["status"]): Task[] => {
+    if (status === "DONE") {
+      return [...taskList].sort((a, b) => {
+        const timeA = a.completedAt
+          ? new Date(a.completedAt).getTime()
+          : (a.updatedAt ? new Date(a.updatedAt).getTime() : 0);
+        const timeB = b.completedAt
+          ? new Date(b.completedAt).getTime()
+          : (b.updatedAt ? new Date(b.updatedAt).getTime() : 0);
+        return timeB - timeA;
+      });
+    }
+
+    return sortTasksByDayRecency(taskList);
+  };
+
   const handleMoveTaskStatus = async (task: Task, newStatus: Task["status"]) => {
     const previousStatus = task.status;
     const previousUpdatedAt = task.updatedAt;
+    const previousCompletedAt = task.completedAt;
     const nowIso = new Date().toISOString();
+    const isDone = newStatus === "DONE";
 
-    // Instant optimistic update with new timestamp so it floats to the top of its day group
+    // Instant optimistic update with new timestamp and completedAt
     setTasks((prev) =>
-      prev.map((t) => (t.id === task.id ? { ...t, status: newStatus, updatedAt: nowIso } : t))
+      prev.map((t) =>
+        t.id === task.id
+          ? {
+              ...t,
+              status: newStatus,
+              completedAt: isDone ? nowIso : null,
+              updatedAt: nowIso,
+            }
+          : t
+      )
     );
 
     try {
@@ -309,14 +340,32 @@ export default function TasksPage() {
       if (!res.ok) {
         // Rollback on failure
         setTasks((prev) =>
-          prev.map((t) => (t.id === task.id ? { ...t, status: previousStatus, updatedAt: previousUpdatedAt } : t))
+          prev.map((t) =>
+            t.id === task.id
+              ? {
+                  ...t,
+                  status: previousStatus,
+                  completedAt: previousCompletedAt,
+                  updatedAt: previousUpdatedAt,
+                }
+              : t
+          )
         );
         const data = await res.json();
         setActionError(data.error || "Status update failed");
       }
     } catch (err: any) {
       setTasks((prev) =>
-        prev.map((t) => (t.id === task.id ? { ...t, status: previousStatus, updatedAt: previousUpdatedAt } : t))
+        prev.map((t) =>
+          t.id === task.id
+            ? {
+                ...t,
+                status: previousStatus,
+                completedAt: previousCompletedAt,
+                updatedAt: previousUpdatedAt,
+              }
+            : t
+        )
       );
       setActionError(err.message || "Network error");
     }
@@ -329,11 +378,22 @@ export default function TasksPage() {
 
     const previousStatus = task.status;
     const previousUpdatedAt = task.updatedAt;
+    const previousCompletedAt = task.completedAt;
     const nowIso = new Date().toISOString();
+    const isDone = newStatus === "DONE";
 
-    // Instant optimistic update with new timestamp so it floats to the top of its day group
+    // Instant optimistic update with new timestamp and completedAt
     setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus, updatedAt: nowIso } : t))
+      prev.map((t) =>
+        t.id === taskId
+          ? {
+              ...t,
+              status: newStatus,
+              completedAt: isDone ? nowIso : null,
+              updatedAt: nowIso,
+            }
+          : t
+      )
     );
 
     try {
@@ -345,13 +405,31 @@ export default function TasksPage() {
       if (!res.ok) {
         // Rollback on failure
         setTasks((prev) =>
-          prev.map((t) => (t.id === taskId ? { ...t, status: previousStatus, updatedAt: previousUpdatedAt } : t))
+          prev.map((t) =>
+            t.id === taskId
+              ? {
+                  ...t,
+                  status: previousStatus,
+                  completedAt: previousCompletedAt,
+                  updatedAt: previousUpdatedAt,
+                }
+              : t
+          )
         );
         setActionError("Failed to update task status");
       }
     } catch (err: any) {
       setTasks((prev) =>
-        prev.map((t) => (t.id === taskId ? { ...t, status: previousStatus, updatedAt: previousUpdatedAt } : t))
+        prev.map((t) =>
+          t.id === taskId
+            ? {
+                ...t,
+                status: previousStatus,
+                completedAt: previousCompletedAt,
+                updatedAt: previousUpdatedAt,
+              }
+            : t
+        )
       );
       setActionError(err.message || "Network error");
     }
@@ -789,7 +867,7 @@ export default function TasksPage() {
             {kanbanColumns
               .filter((col) => selectedMobileColumn === "ALL" || col.id === selectedMobileColumn)
               .map((col) => {
-            const columnTasks = sortTasksByDayRecency(tasks.filter((t) => t.status === col.id));
+            const columnTasks = sortColumnTasks(tasks.filter((t) => t.status === col.id), col.id);
             return (
               <div
                 key={col.id}
@@ -887,13 +965,23 @@ export default function TasksPage() {
                               </p>
                             )}
 
-                            {/* Due Date */}
-                            {task.dueDate && (
+                            {/* Due Date or Completed Date */}
+                            {task.status === "DONE" ? (
+                              <div className="mt-2.5 flex items-center gap-1.5 text-[10px] text-emerald-700 font-semibold bg-emerald-50/90 px-2 py-0.5 rounded border border-emerald-200/90 w-fit">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                                <span>Completed: {formatDate(task.completedAt || task.updatedAt || new Date().toISOString())}</span>
+                                {task.dueDate && (
+                                  <span className="text-[9px] text-slate-400 font-normal">
+                                    (Due: {formatDate(task.dueDate)})
+                                  </span>
+                                )}
+                              </div>
+                            ) : task.dueDate ? (
                               <div className="mt-2.5 flex items-center gap-1 text-[10px] text-slate-500 font-medium">
                                 <Clock className="w-3 h-3 text-slate-400" />
                                 <span>Due: {formatDate(task.dueDate)}</span>
                               </div>
-                            )}
+                            ) : null}
                           </div>
 
                           {/* Footer with Assignee & Status Quick Switcher */}
@@ -1037,12 +1125,22 @@ export default function TasksPage() {
                             showName={true}
                           />
                         </span>
-                        {task.dueDate && (
+                        {task.status === "DONE" ? (
+                          <span className="flex items-center gap-1 text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            <span>Completed: {formatDate(task.completedAt || task.updatedAt || new Date().toISOString())}</span>
+                            {task.dueDate && (
+                              <span className="text-[10px] text-slate-400 font-normal ml-0.5">
+                                (Due: {formatDate(task.dueDate)})
+                              </span>
+                            )}
+                          </span>
+                        ) : task.dueDate ? (
                           <span className="flex items-center gap-1 text-amber-700">
                             <Clock className="w-3 h-3" />
                             {formatDate(task.dueDate)}
                           </span>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   </div>
