@@ -59,6 +59,8 @@ interface Task {
     email?: string;
     department?: string;
   }>;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface ProjectOption {
@@ -255,23 +257,67 @@ export default function TasksPage() {
     }
   };
 
+  // Recency-based sorting engine:
+  // 1. Different calendar days -> Chronological order (earlier due dates first)
+  // 2. Same calendar day (or both have no due date) -> Ordered by recent task movements or edits (updatedAt desc)
+  const sortTasksByDayRecency = (taskList: Task[]): Task[] => {
+    return [...taskList].sort((a, b) => {
+      const timeA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const timeB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+
+      const hasDueA = Boolean(a.dueDate && !isNaN(new Date(a.dueDate).getTime()));
+      const hasDueB = Boolean(b.dueDate && !isNaN(new Date(b.dueDate).getTime()));
+
+      if (hasDueA && hasDueB) {
+        const dayA = new Date(a.dueDate!).toISOString().slice(0, 10);
+        const dayB = new Date(b.dueDate!).toISOString().slice(0, 10);
+
+        // Different calendar days: chronological order
+        if (dayA !== dayB) {
+          return dayA.localeCompare(dayB);
+        }
+
+        // Same calendar day: most recently moved or edited first
+        return timeB - timeA;
+      }
+
+      // Tasks with due dates come before tasks with no due date
+      if (hasDueA && !hasDueB) return -1;
+      if (!hasDueA && hasDueB) return 1;
+
+      // Both have no due date: most recently moved or edited first
+      return timeB - timeA;
+    });
+  };
+
   const handleMoveTaskStatus = async (task: Task, newStatus: Task["status"]) => {
+    const previousStatus = task.status;
+    const previousUpdatedAt = task.updatedAt;
+    const nowIso = new Date().toISOString();
+
+    // Instant optimistic update with new timestamp so it floats to the top of its day group
+    setTasks((prev) =>
+      prev.map((t) => (t.id === task.id ? { ...t, status: newStatus, updatedAt: nowIso } : t))
+    );
+
     try {
       const res = await fetch(`/api/tasks/${task.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (res.ok) {
-        // Optimistic UI update
+      if (!res.ok) {
+        // Rollback on failure
         setTasks((prev) =>
-          prev.map((t) => (t.id === task.id ? { ...t, status: newStatus } : t))
+          prev.map((t) => (t.id === task.id ? { ...t, status: previousStatus, updatedAt: previousUpdatedAt } : t))
         );
-      } else {
         const data = await res.json();
         setActionError(data.error || "Status update failed");
       }
     } catch (err: any) {
+      setTasks((prev) =>
+        prev.map((t) => (t.id === task.id ? { ...t, status: previousStatus, updatedAt: previousUpdatedAt } : t))
+      );
       setActionError(err.message || "Network error");
     }
   };
@@ -281,9 +327,13 @@ export default function TasksPage() {
     const task = tasks.find((t) => t.id === taskId);
     if (!task || task.status === newStatus) return;
 
-    // Instant optimistic update
+    const previousStatus = task.status;
+    const previousUpdatedAt = task.updatedAt;
+    const nowIso = new Date().toISOString();
+
+    // Instant optimistic update with new timestamp so it floats to the top of its day group
     setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
+      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus, updatedAt: nowIso } : t))
     );
 
     try {
@@ -295,13 +345,13 @@ export default function TasksPage() {
       if (!res.ok) {
         // Rollback on failure
         setTasks((prev) =>
-          prev.map((t) => (t.id === taskId ? { ...t, status: task.status } : t))
+          prev.map((t) => (t.id === taskId ? { ...t, status: previousStatus, updatedAt: previousUpdatedAt } : t))
         );
         setActionError("Failed to update task status");
       }
     } catch (err: any) {
       setTasks((prev) =>
-        prev.map((t) => (t.id === taskId ? { ...t, status: task.status } : t))
+        prev.map((t) => (t.id === taskId ? { ...t, status: previousStatus, updatedAt: previousUpdatedAt } : t))
       );
       setActionError(err.message || "Network error");
     }
@@ -442,14 +492,14 @@ export default function TasksPage() {
     { id: "DONE", title: "Completed", color: "border-emerald-400" },
   ];
 
-  const myDirectTasks = tasks
-    .filter(
+  const myDirectTasks = sortTasksByDayRecency(
+    tasks.filter(
       (t) =>
         (t.assignedToId === user?.id ||
           t.assignees?.some((a) => a.id === user?.id)) &&
         t.status !== "DONE"
     )
-    .slice(0, 4);
+  ).slice(0, 4);
 
   return (
     <AppLayout
@@ -739,7 +789,7 @@ export default function TasksPage() {
             {kanbanColumns
               .filter((col) => selectedMobileColumn === "ALL" || col.id === selectedMobileColumn)
               .map((col) => {
-            const columnTasks = tasks.filter((t) => t.status === col.id);
+            const columnTasks = sortTasksByDayRecency(tasks.filter((t) => t.status === col.id));
             return (
               <div
                 key={col.id}
@@ -926,7 +976,7 @@ export default function TasksPage() {
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
-              {tasks.map((task) => (
+              {sortTasksByDayRecency(tasks).map((task) => (
                 <div
                   key={task.id}
                   className={`py-3.5 flex items-start justify-between gap-4 transition-colors ${

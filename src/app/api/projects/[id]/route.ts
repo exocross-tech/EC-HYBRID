@@ -59,7 +59,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
           include: {
             assignedTo: { select: { id: true, name: true, email: true, department: true } },
           },
-          orderBy: { dueDate: "asc" },
+          orderBy: [{ dueDate: "asc" }, { updatedAt: "desc" }],
         },
         calendarEvents: true,
       },

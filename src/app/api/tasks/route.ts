@@ -73,8 +73,8 @@ export async function GET(req: NextRequest) {
         assignedTo: { select: { id: true, name: true, email: true, department: true } },
       },
       orderBy: [
-        { priority: "desc" },
         { dueDate: "asc" },
+        { updatedAt: "desc" },
       ],
     });
 
