@@ -863,7 +863,7 @@ export default function TasksPage() {
             })}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
             {kanbanColumns
               .filter((col) => selectedMobileColumn === "ALL" || col.id === selectedMobileColumn)
               .map((col) => {
@@ -890,7 +890,7 @@ export default function TasksPage() {
                     handleDropTask(taskId, col.id);
                   }
                 }}
-                className={`rounded-xl p-3 border transition-all flex flex-col min-h-[500px] min-w-0 ${
+                className={`rounded-xl p-3 border transition-all flex flex-col h-[calc(100vh-235px)] min-h-[460px] max-h-[calc(100vh-235px)] min-w-0 ${
                   dragOverColumn === col.id
                     ? "bg-indigo-50/70 border-indigo-400 ring-2 ring-indigo-500/20 shadow-md"
                     : "bg-slate-100/70 border-slate-200/80"
@@ -907,7 +907,7 @@ export default function TasksPage() {
                 </div>
 
                 {/* Task Cards in Column */}
-                <div className="space-y-3 flex-1 overflow-y-auto overflow-x-hidden min-h-[80px]">
+                <div className="space-y-3 flex-1 overflow-y-auto overflow-x-hidden min-h-0 pr-1.5">
                   {columnTasks.length === 0 ? (
                     <div className="p-6 text-center text-slate-400 text-[11px] border border-dashed border-slate-200 rounded-lg">
                       No tasks in {col.title}
