@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { useAuth } from "@/context/AuthContext";
+import { useRealtimeSync, triggerLocalMutation } from "@/hooks/useRealtimeSync";
 import { formatINR } from "@/lib/formatCurrency";
 import { formatDate } from "@/lib/formatDate";
 import {
@@ -164,6 +165,14 @@ export default function ProjectsPage() {
     fetchClients();
   }, [search, typeFilter, statusFilter, user?.role]);
 
+  // Real-time synchronization across tabs
+  useRealtimeSync((event) => {
+    if (event?.type !== "PING" && event?.type !== "CONNECTED") {
+      fetchProjects();
+      fetchClients();
+    }
+  });
+
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
@@ -190,6 +199,7 @@ export default function ProjectsPage() {
       if (res.ok) {
         setActionSuccess(`Project "${formData.name}" created successfully.`);
         setIsAddModalOpen(false);
+        triggerLocalMutation("DATA_MUTATED", { entity: "PROJECT" });
         setFormData({
           name: "",
           description: "",
@@ -257,6 +267,7 @@ export default function ProjectsPage() {
         setActionSuccess(`Project "${formData.name}" updated successfully.`);
         setIsEditModalOpen(false);
         fetchProjects();
+        triggerLocalMutation("DATA_MUTATED", { entity: "PROJECT" });
       } else {
         setActionError(data.error || "Failed to update project");
       }
@@ -314,6 +325,7 @@ export default function ProjectsPage() {
         setActionSuccess(`Project "${confirmDeleteProject.name}" deleted.`);
         setConfirmDeleteProject(null);
         fetchProjects();
+        triggerLocalMutation("DATA_MUTATED", { entity: "PROJECT" });
       } else {
         setActionError(data.error || "Delete failed");
       }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { broadcastRealtimeEvent } from "@/lib/realtime";
 
 type RouteContext = {
   params: Promise<{ id: string }> | { id: string };
@@ -156,6 +157,40 @@ export async function PUT(req: NextRequest, context: RouteContext) {
       updateData.clientId = parseClientId(body.clientId, existing.clientId);
     }
 
+    if (updateData.budget !== undefined && updateData.budget !== existing.budget) {
+      const linkedInvoices = await prisma.invoice.findMany({
+        where: { projectId: id },
+      });
+      for (const inv of linkedInvoices) {
+        let updatedItems = inv.items;
+        try {
+          const parsed = JSON.parse(inv.items || "{}");
+          if (Array.isArray(parsed.lineItems) && parsed.lineItems.length > 0) {
+            const currentSubtotal = parsed.lineItems.reduce((acc: number, it: any) => acc + (parseFloat(it.amount) || 0), 0);
+            const diff = updateData.budget - currentSubtotal;
+            if (diff !== 0) {
+              const mainIdx = parsed.lineItems.reduce((maxI: number, it: any, i: number, arr: any[]) =>
+                (parseFloat(it.amount) || 0) > (parseFloat(arr[maxI].amount) || 0) ? i : maxI, 0);
+              const newAmount = Math.max(0, (parseFloat(parsed.lineItems[mainIdx].amount) || 0) + diff);
+              parsed.lineItems[mainIdx].amount = newAmount;
+              parsed.lineItems[mainIdx].unitPrice = newAmount;
+              updatedItems = JSON.stringify(parsed);
+            }
+          }
+        } catch {}
+
+        await prisma.invoice.update({
+          where: { id: inv.id },
+          data: {
+            amount: updateData.budget,
+            totalAmount: updateData.budget,
+            items: updatedItems,
+          },
+        });
+        broadcastRealtimeEvent("INVOICE_UPDATED", { id: inv.id, invoiceNumber: inv.invoiceNumber, amount: updateData.budget });
+      }
+    }
+
     const updated = await prisma.project.update({
       where: { id },
       data: updateData,
@@ -176,6 +211,8 @@ export async function PUT(req: NextRequest, context: RouteContext) {
       console.warn("Audit log creation warning:", auditErr);
     }
 
+    broadcastRealtimeEvent("PROJECT_UPDATED", { id: updated.id, name: updated.name, budget: updated.budget });
+    broadcastRealtimeEvent("DATA_MUTATED", { entity: "PROJECT", id: updated.id });
     return NextResponse.json({ success: true, project: updated });
   } catch (err: any) {
     console.error("PUT /api/projects/[id] error:", err);
@@ -223,6 +260,8 @@ export async function DELETE(req: NextRequest, context: RouteContext) {
       console.warn("Audit log creation warning:", auditErr);
     }
 
+    broadcastRealtimeEvent("PROJECT_DELETED", { id: existing.id, name: existing.name });
+    broadcastRealtimeEvent("DATA_MUTATED", { entity: "PROJECT", id: existing.id });
     return NextResponse.json({ success: true, message: `Project ${existing.name} deleted` });
   } catch (err: any) {
     console.error("DELETE /api/projects/[id] error:", err);

@@ -340,7 +340,13 @@ export default function InvoicesPage() {
 
   // Real-time synchronization
   useRealtimeSync((event) => {
-    if (event.type === "INVOICE_PAID" || event.type === "INVOICE_CREATED" || event.type === "DATA_MUTATED") {
+    if (
+      event.type === "INVOICE_PAID" ||
+      event.type === "INVOICE_CREATED" ||
+      event.type === "INVOICE_UPDATED" ||
+      event.type === "PROJECT_UPDATED" ||
+      event.type === "DATA_MUTATED"
+    ) {
       fetchInvoices();
     }
   });

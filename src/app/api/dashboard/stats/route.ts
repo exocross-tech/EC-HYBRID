@@ -40,9 +40,10 @@ export async function GET() {
         prisma.client.findMany({
           where: { isDeleted: false },
           include: {
-            invoices: { select: { totalAmount: true, status: true } },
+            invoices: { select: { id: true, projectId: true, totalAmount: true, status: true } },
             projects: { select: { id: true, budget: true, status: true } },
             orders: { select: { amount: true } },
+            productLicenses: { select: { price: true, status: true } },
           },
         }),
         prisma.task.findMany({
@@ -100,9 +101,24 @@ export async function GET() {
 
       clientsWithServices.forEach((c) => {
         const companyKey = c.company?.trim() || c.name;
-        const invoiceRev = c.invoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
+
+        // 1. Contracted Service Projects Volume (dynamically tracks project valuations from Projects tab)
+        let projectVolume = 0;
+        c.projects.forEach((proj) => {
+          projectVolume += (proj.budget && proj.budget > 0) ? proj.budget : 0;
+        });
+
+        // 2. Standalone Invoices (invoices not tied to any project)
+        const standaloneInvoiceVolume = c.invoices
+          .filter((inv) => !inv.projectId)
+          .reduce((sum, inv) => sum + inv.totalAmount, 0);
+
+        // 3. Product orders and software licenses
         const orderRev = c.orders.reduce((sum, ord) => sum + ord.amount, 0);
-        const totalRev = invoiceRev + orderRev;
+        const licenseRev = (c as any).productLicenses?.reduce((sum: number, lic: any) => sum + (lic.price || 0), 0) || 0;
+
+        // Total client contracted service and buying volume
+        const totalRev = projectVolume + standaloneInvoiceVolume + orderRev + licenseRev;
         totalBilledAllClients += totalRev;
 
         if (!companyMap[companyKey]) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { broadcastRealtimeEvent } from "@/lib/realtime";
 
 // GET /api/projects
 export async function GET(req: NextRequest) {
@@ -95,6 +96,8 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    broadcastRealtimeEvent("PROJECT_CREATED", { id: newProject.id, name: newProject.name, budget: newProject.budget });
+    broadcastRealtimeEvent("DATA_MUTATED", { entity: "PROJECT", id: newProject.id });
     return NextResponse.json({ success: true, project: newProject }, { status: 201 });
   } catch (err: any) {
     console.error("Create project error:", err);

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { useAuth } from "@/context/AuthContext";
+import { useRealtimeSync, triggerLocalMutation } from "@/hooks/useRealtimeSync";
 import { formatINR } from "@/lib/formatCurrency";
 import { formatDate } from "@/lib/formatDate";
 import { CreatableCombobox } from "@/components/CreatableCombobox";
@@ -194,6 +195,13 @@ export default function ClientsPage() {
     fetchClients();
   }, [search, typeFilter, statusFilter, user?.role]);
 
+  // Real-time synchronization across tabs
+  useRealtimeSync((event) => {
+    if (event?.type !== "PING" && event?.type !== "CONNECTED") {
+      fetchClients();
+    }
+  });
+
   const handleCreateClient = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
@@ -212,6 +220,7 @@ export default function ClientsPage() {
       if (res.ok) {
         setActionSuccess(`Client ${formData.company} created successfully.`);
         setIsAddModalOpen(false);
+        triggerLocalMutation("DATA_MUTATED", { entity: "CLIENT" });
         setFormData({
           name: "",
           company: "",
@@ -269,6 +278,7 @@ export default function ClientsPage() {
         setActionSuccess(`Client ${selectedClient.company} updated successfully.`);
         setIsEditModalOpen(false);
         fetchClients();
+        triggerLocalMutation("DATA_MUTATED", { entity: "CLIENT" });
       } else {
         setActionError(data.error || "Failed to update client");
       }
@@ -293,6 +303,7 @@ export default function ClientsPage() {
         setActionSuccess(data.message || `Client ${confirmSoftDeleteClient.company} soft-deleted. Records preserved.`);
         setConfirmSoftDeleteClient(null);
         fetchClients();
+        triggerLocalMutation("DATA_MUTATED", { entity: "CLIENT" });
       } else {
         setActionError(data.error || "Soft delete failed");
       }
@@ -317,6 +328,7 @@ export default function ClientsPage() {
         setActionSuccess(data.message || `Client ${confirmDeleteClient.company} permanently deleted.`);
         setConfirmDeleteClient(null);
         fetchClients();
+        triggerLocalMutation("DATA_MUTATED", { entity: "CLIENT" });
       } else {
         setActionError(data.error || "Permanent deletion failed");
       }

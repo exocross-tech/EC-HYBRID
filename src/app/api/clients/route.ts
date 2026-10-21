@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { broadcastRealtimeEvent } from "@/lib/realtime";
 
 // GET /api/clients
 export async function GET(req: NextRequest) {
@@ -161,6 +162,8 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    broadcastRealtimeEvent("CLIENT_UPDATED", { id: newClient.id, company: newClient.company });
+    broadcastRealtimeEvent("DATA_MUTATED", { entity: "CLIENT", id: newClient.id });
     return NextResponse.json({ success: true, client: newClient }, { status: 201 });
   } catch (err: any) {
     console.error("Create client error:", err);
