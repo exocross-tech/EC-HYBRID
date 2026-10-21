@@ -890,7 +890,7 @@ export default function TasksPage() {
                     handleDropTask(taskId, col.id);
                   }
                 }}
-                className={`rounded-xl p-3 border transition-all flex flex-col min-h-[500px] ${
+                className={`rounded-xl p-3 border transition-all flex flex-col min-h-[500px] min-w-0 ${
                   dragOverColumn === col.id
                     ? "bg-indigo-50/70 border-indigo-400 ring-2 ring-indigo-500/20 shadow-md"
                     : "bg-slate-100/70 border-slate-200/80"
@@ -907,7 +907,7 @@ export default function TasksPage() {
                 </div>
 
                 {/* Task Cards in Column */}
-                <div className="space-y-3 flex-1 overflow-y-auto min-h-[80px]">
+                <div className="space-y-3 flex-1 overflow-y-auto overflow-x-hidden min-h-[80px]">
                   {columnTasks.length === 0 ? (
                     <div className="p-6 text-center text-slate-400 text-[11px] border border-dashed border-slate-200 rounded-lg">
                       No tasks in {col.title}
@@ -936,7 +936,7 @@ export default function TasksPage() {
                             setDraggedTaskId(null);
                             setDragOverColumn(null);
                           }}
-                          className={`bg-white rounded-lg border border-slate-200 p-3.5 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between cursor-grab active:cursor-grabbing select-none ${
+                          className={`w-full min-w-0 overflow-hidden bg-white rounded-lg border border-slate-200 p-3.5 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between cursor-grab active:cursor-grabbing select-none ${
                             draggedTaskId === task.id
                               ? "opacity-40 scale-95 border-dashed border-indigo-400"
                               : ""
@@ -984,9 +984,10 @@ export default function TasksPage() {
                             ) : null}
                           </div>
 
-                          {/* Footer with Assignee & Status Quick Switcher */}
-                          <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
-                            <div className="flex items-center gap-1.5">
+                          {/* Two-Tier Card Footer: Top tier for Assignee, Bottom tier for Actions */}
+                          <div className="mt-3 pt-2.5 border-t border-slate-100 flex flex-col gap-2">
+                            {/* Tier 1: Assignee with full name */}
+                            <div className="flex items-center justify-between min-w-0">
                               <AssigneeAvatarCluster
                                 assignees={task.assignees}
                                 fallbackUser={task.assignedTo}
@@ -995,14 +996,15 @@ export default function TasksPage() {
                               />
                             </div>
 
-                            {/* Move Status Dropdown (Accessible to employee for their task & managers) */}
-                            <div className="flex items-center gap-1.5">
+                            {/* Tier 2: Status Quick Switcher & Actions */}
+                            <div className="flex items-center justify-between gap-1.5 pt-1 border-t border-slate-50 min-w-0">
+                              {/* Move Status Dropdown */}
                               <select
                                 value={task.status}
                                 onChange={(e) =>
                                   handleMoveTaskStatus(task, e.target.value as any)
                                 }
-                                className="text-[11px] font-bold bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-2 py-1 text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-600 cursor-pointer min-h-[36px]"
+                                className="text-[11px] font-bold bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-2 py-1 text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-600 cursor-pointer h-7"
                               >
                                 <option value="TODO">To Do</option>
                                 <option value="IN_PROGRESS">Progress</option>
@@ -1010,23 +1012,24 @@ export default function TasksPage() {
                                 <option value="DONE">Done</option>
                               </select>
 
+                              {/* Edit & Delete Action Buttons (Cleanly aligned at bottom right) */}
                               {canAssignTasks && (
-                                <button
-                                  onClick={() => handleOpenEdit(task)}
-                                  className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-slate-100 cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center transition-colors"
-                                  title="Edit Task"
-                                >
-                                  <Edit2 className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                              {canAssignTasks && (
-                                <button
-                                  onClick={() => handleDeleteTask(task)}
-                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center transition-colors"
-                                  title="Delete Task"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button
+                                    onClick={() => handleOpenEdit(task)}
+                                    className="w-7 h-7 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-slate-100 cursor-pointer flex items-center justify-center transition-colors"
+                                    title="Edit Task"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteTask(task)}
+                                    className="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer flex items-center justify-center transition-colors"
+                                    title="Delete Task"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                               )}
                             </div>
                           </div>
