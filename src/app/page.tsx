@@ -631,56 +631,104 @@ export default function DashboardPage() {
                         "#06B6D4", // Cyan
                       ];
 
-                      // SVG Donut Math: radius = 64, circumference = 2 * PI * 64 ≈ 402.12
-                      const radius = 64;
-                      const circumference = 2 * Math.PI * radius;
-                      let accumulatedOffset = 0;
+                      // Polar to cartesian conversion for SVG arcs (0° = 12 o'clock)
+                      const polarToCartesian = (cx: number, cy: number, r: number, angleInDegrees: number) => {
+                        const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
+                        return {
+                          x: cx + r * Math.cos(angleInRadians),
+                          y: cy + r * Math.sin(angleInRadians),
+                        };
+                      };
+
+                      const describeArc = (cx: number, cy: number, r: number, startAngle: number, endAngle: number) => {
+                        const start = polarToCartesian(cx, cy, r, startAngle);
+                        const end = polarToCartesian(cx, cy, r, endAngle);
+                        const largeArcFlag = endAngle - startAngle <= 180 ? 0 : 1;
+                        return [
+                          "M",
+                          start.x.toFixed(2),
+                          start.y.toFixed(2),
+                          "A",
+                          r,
+                          r,
+                          0,
+                          largeArcFlag,
+                          1,
+                          end.x.toFixed(2),
+                          end.y.toFixed(2),
+                        ].join(" ");
+                      };
+
+                      const activeSegments = items.filter((it: any) => it.revenue > 0);
+                      const hasMultiple = activeSegments.length > 1;
+                      const gapAngle = hasMultiple ? 3 : 0; // 3° sleek micro-gap between slices
+                      const totalAvailableDegrees = 360 - activeSegments.length * gapAngle;
+                      let currentAngle = gapAngle / 2;
 
                       return (
                         <div className="grid grid-cols-1 sm:grid-cols-12 gap-5 items-center">
                           {/* SVG Donut */}
                           <div className="sm:col-span-5 flex justify-center relative">
-                            <svg className="w-40 h-40 transform -rotate-90" viewBox="0 0 160 160">
+                            <svg className="w-40 h-40" viewBox="0 0 160 160">
                               {/* Background circle track */}
                               <circle
                                 cx="80"
                                 cy="80"
-                                r={radius}
+                                r={64}
                                 className="stroke-slate-100"
                                 strokeWidth="18"
                                 fill="transparent"
                               />
-                              {items.map((item: any, idx: number) => {
-                                const pct = totalRev > 0 ? item.revenue / totalRev : 0;
-                                const strokeLength = pct * circumference;
-                                const strokeDasharray = `${strokeLength} ${circumference - strokeLength}`;
-                                const strokeDashoffset = -accumulatedOffset;
-                                accumulatedOffset += strokeLength;
 
-                                return (
-                                  <circle
-                                    key={item.company}
-                                    cx="80"
-                                    cy="80"
-                                    r={radius}
-                                    stroke={DONUT_COLORS[idx % DONUT_COLORS.length]}
-                                    strokeWidth="18"
-                                    strokeDasharray={strokeDasharray}
-                                    strokeDashoffset={strokeDashoffset}
-                                    fill="transparent"
-                                    className="transition-all duration-700 hover:opacity-85"
-                                  />
-                                );
-                              })}
+                              {/* Single 100% item */}
+                              {activeSegments.length === 1 && (
+                                <circle
+                                  cx="80"
+                                  cy="80"
+                                  r={64}
+                                  stroke={DONUT_COLORS[0]}
+                                  strokeWidth="18"
+                                  fill="transparent"
+                                />
+                              )}
+
+                              {/* Multiple Arc Slices with clean radial seams & gap */}
+                              {hasMultiple &&
+                                activeSegments.map((item: any, idx: number) => {
+                                  const pct = totalRev > 0 ? item.revenue / totalRev : 0;
+                                  const sliceDegrees = pct * totalAvailableDegrees;
+                                  const startAngle = currentAngle;
+                                  const endAngle = startAngle + sliceDegrees;
+                                  currentAngle = endAngle + gapAngle;
+
+                                  const pathData = describeArc(80, 80, 64, startAngle, endAngle);
+
+                                  return (
+                                    <path
+                                      key={item.company}
+                                      d={pathData}
+                                      stroke={DONUT_COLORS[idx % DONUT_COLORS.length]}
+                                      strokeWidth="18"
+                                      fill="none"
+                                      strokeLinecap="butt"
+                                      className="transition-opacity duration-300 hover:opacity-85"
+                                    />
+                                  );
+                                })}
                             </svg>
 
                             {/* Center Cutout Text */}
-                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-2">
                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Top Share</span>
                               <span className="text-base font-black text-slate-900 leading-tight">
                                 {items[0]?.sharePercentage || 0}%
                               </span>
-                              <span className="text-[9px] text-slate-400 font-medium">{items[0]?.company?.slice(0, 10) || "Clients"}</span>
+                              <span
+                                className="text-[9px] text-slate-500 font-semibold truncate max-w-[84px]"
+                                title={items[0]?.company}
+                              >
+                                {items[0]?.company || "Clients"}
+                              </span>
                             </div>
                           </div>
 
