@@ -24,9 +24,12 @@ export async function GET() {
         where: { status: "PAID" },
         include: { product: true, client: true },
       }),
-      // Service Line Billing
+      // Service Line Billing (exclude ON_HOLD projects from revenue & billing realization)
       prisma.project.findMany({
-        where: { type: "SERVICE" },
+        where: {
+          type: "SERVICE",
+          status: { not: "ON_HOLD" },
+        },
         include: { client: true },
       }),
       // Payroll Expenses

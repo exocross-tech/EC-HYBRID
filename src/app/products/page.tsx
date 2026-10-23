@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { useAuth } from "@/context/AuthContext";
 import { formatINR } from "@/lib/formatCurrency";
@@ -37,11 +37,73 @@ import {
   CreditCard,
   Globe,
   CalendarDays,
+  FileText,
+  UploadCloud,
+  Download,
+  Link2,
+  Film,
+  Image as ImageIcon,
+  Paperclip,
+  FileCode,
 } from "lucide-react";
 import { AssigneeAvatarCluster } from "@/components/AssigneeAvatarCluster";
 import { MultiAssigneeSelect } from "@/components/MultiAssigneeSelect";
 import { DateInput } from "@/components/DateInput";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
+
+export interface VaultAttachment {
+  id: string;
+  name: string;
+  type: "image" | "pdf" | "video" | "document";
+  mimeType?: string;
+  url: string;
+  size?: number;
+  uploadedAt: string;
+}
+
+function detectAttachmentType(name: string, mime?: string): "image" | "pdf" | "video" | "document" {
+  const lowerName = name.toLowerCase();
+  const lowerMime = (mime || "").toLowerCase();
+
+  if (
+    lowerMime.startsWith("image/") ||
+    /\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(lowerName)
+  ) {
+    return "image";
+  }
+  if (lowerMime === "application/pdf" || lowerName.endsWith(".pdf")) {
+    return "pdf";
+  }
+  if (
+    lowerMime.startsWith("video/") ||
+    /\.(mp4|webm|ogg|mov|m4v)$/i.test(lowerName)
+  ) {
+    return "video";
+  }
+  return "document";
+}
+
+function parseVaultRequirements(raw: string | null | undefined): { text: string; attachments: VaultAttachment[] } {
+  if (!raw) return { text: "", attachments: [] };
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && ("text" in parsed || "attachments" in parsed || "notes" in parsed)) {
+      return {
+        text: parsed.text || parsed.notes || "",
+        attachments: Array.isArray(parsed.attachments) ? parsed.attachments : [],
+      };
+    }
+  } catch {}
+  return { text: raw, attachments: [] };
+}
+
+function formatFileSize(bytes?: number): string {
+  if (!bytes || bytes <= 0) return "";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+}
 
 export interface ProductLicense {
   id: string;
@@ -166,6 +228,14 @@ export default function ProductsPage() {
   const [viewingRoadmapProduct, setViewingRoadmapProduct] = useState<Product | null>(null);
   const [vaultProduct, setVaultProduct] = useState<Product | null>(null);
   const [vaultText, setVaultText] = useState("");
+  const [vaultAttachments, setVaultAttachments] = useState<VaultAttachment[]>([]);
+  const [uploadingVaultFile, setUploadingVaultFile] = useState(false);
+  const [vaultUploadError, setVaultUploadError] = useState<string | null>(null);
+  const [urlInputOpen, setUrlInputOpen] = useState(false);
+  const [urlInputValue, setUrlInputValue] = useState("");
+  const [urlInputName, setUrlInputName] = useState("");
+  const [dragOverVault, setDragOverVault] = useState(false);
+  const vaultFileInputRef = useRef<HTMLInputElement | null>(null);
   const [confirmDeleteProduct, setConfirmDeleteProduct] = useState<Product | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copiedVault, setCopiedVault] = useState(false);
@@ -437,8 +507,79 @@ export default function ProductsPage() {
 
   const handleOpenVault = (product: Product) => {
     setVaultProduct(product);
-    setVaultText(product.requirements || "");
+    const parsed = parseVaultRequirements(product.requirements);
+    setVaultText(parsed.text);
+    setVaultAttachments(parsed.attachments);
     setCopiedVault(false);
+    setVaultUploadError(null);
+    setUrlInputOpen(false);
+  };
+
+  const handleUploadVaultFiles = async (files: FileList | File[]) => {
+    if (!files || files.length === 0) return;
+    setUploadingVaultFile(true);
+    setVaultUploadError(null);
+
+    try {
+      const newAttachments: VaultAttachment[] = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || `Failed to upload ${file.name}`);
+        }
+
+        const data = await res.json();
+        newAttachments.push({
+          id: `att_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          name: data.name || file.name,
+          type: detectAttachmentType(data.name || file.name, data.mimeType || file.type),
+          mimeType: data.mimeType || file.type,
+          url: data.url,
+          size: data.size || file.size,
+          uploadedAt: new Date().toISOString(),
+        });
+      }
+
+      setVaultAttachments((prev) => [...prev, ...newAttachments]);
+    } catch (err: any) {
+      setVaultUploadError(err.message || "Failed to upload file(s)");
+    } finally {
+      setUploadingVaultFile(false);
+    }
+  };
+
+  const handleAddUrlAttachment = () => {
+    if (!urlInputValue.trim()) return;
+    const cleanUrl = urlInputValue.trim();
+    const rawName = urlInputName.trim() || cleanUrl.split("/").pop() || "External Resource";
+    const type = detectAttachmentType(rawName);
+
+    const newAtt: VaultAttachment = {
+      id: `att_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      name: rawName,
+      type,
+      url: cleanUrl,
+      uploadedAt: new Date().toISOString(),
+    };
+
+    setVaultAttachments((prev) => [...prev, newAtt]);
+    setUrlInputValue("");
+    setUrlInputName("");
+    setUrlInputOpen(false);
+  };
+
+  const handleRemoveAttachment = (id: string) => {
+    setVaultAttachments((prev) => prev.filter((a) => a.id !== id));
   };
 
   const handleCreateProduct = async (e: React.FormEvent) => {
@@ -518,10 +659,15 @@ export default function ProductsPage() {
     setActionError(null);
 
     try {
+      const payload = JSON.stringify({
+        text: vaultText,
+        attachments: vaultAttachments,
+      });
+
       const res = await fetch(`/api/projects/${vaultProduct.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requirements: vaultText }),
+        body: JSON.stringify({ requirements: payload }),
       });
 
       const data = await res.json();
@@ -1540,44 +1686,56 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* MODAL 2: Product Architecture & Technical Vault Modal (Light Theme!) */}
+      {/* MODAL 2: Product Architecture & Technical Vault Modal (Expanded max-w-5xl with Rich Media & Full Viewers) */}
       {vaultProduct && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden">
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden">
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-200/60">
-                  <Key className="w-4 h-4" />
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600 border border-amber-200/60 shadow-2xs">
+                  <Key className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">
-                    Product Architecture & Technical Vault
-                  </h3>
-                  <p className="text-xs text-slate-500">{vaultProduct.name}</p>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
+                      Product Architecture & Technical Vault
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100/70 text-amber-800 border border-amber-200">
+                      {vaultAttachments.length} Asset{vaultAttachments.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5 font-medium">{vaultProduct.name} &bull; Technical blueprints, specifications & embedded assets</p>
                 </div>
               </div>
               <button
                 onClick={() => setVaultProduct(null)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
+                title="Close modal"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Modal Body */}
-            <div className="p-6 space-y-4">
-              <div className="bg-amber-50/70 border border-amber-200/70 rounded-xl p-3 text-xs text-amber-900 flex items-start gap-2.5">
+            {/* Modal Body - Fully Scrollable with Smooth Behavior */}
+            <div className="p-5 sm:p-6 space-y-6 overflow-y-auto max-h-[calc(92vh-140px)] divide-y divide-slate-100">
+              {/* Architecture & Security Overview Banner */}
+              <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3.5 text-xs text-amber-950 flex items-start gap-3 shadow-2xs">
                 <Shield className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                <p>
-                  Store technical specs, git repository links, staging URLs, architecture decisions, and environment configuration guides for this proprietary product.
-                </p>
+                <div className="space-y-0.5 leading-relaxed">
+                  <p className="font-bold">Proprietary Technology & Architecture Repository</p>
+                  <p className="text-amber-800/90 text-[11px]">
+                    Centralized technical documentation, system architectural diagrams, interactive specification PDFs, sprint demo videos, environment variables, and git repositories.
+                  </p>
+                </div>
               </div>
 
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-semibold text-slate-700">
-                    Technical Specifications & Vault Notes
+              {/* 1. TECHNICAL SPECIFICATIONS & NOTES */}
+              <div className="pt-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                    <FileCode className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Technical Specifications & Markdown Vault Notes</span>
                   </label>
                   {vaultText && (
                     <button
@@ -1587,51 +1745,385 @@ export default function ProductsPage() {
                         setCopiedVault(true);
                         setTimeout(() => setCopiedVault(false), 2000);
                       }}
-                      className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-indigo-600 transition-colors"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 hover:text-indigo-600 hover:bg-slate-100 transition-colors cursor-pointer"
                     >
                       {copiedVault ? (
                         <>
-                          <Check className="w-3 h-3 text-emerald-500" />
-                          <span className="text-emerald-600">Copied</span>
+                          <Check className="w-3.5 h-3.5 text-emerald-600" />
+                          <span className="text-emerald-600 font-semibold">Copied to Clipboard</span>
                         </>
                       ) : (
                         <>
-                          <Copy className="w-3 h-3" />
-                          <span>Copy Content</span>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Copy Notes</span>
                         </>
                       )}
                     </button>
                   )}
                 </div>
-                {/* Clean Light-Themed Textarea - No black background */}
+
                 <textarea
-                  rows={10}
+                  rows={6}
                   value={vaultText}
                   onChange={(e) => setVaultText(e.target.value)}
+                  placeholder="Insert architecture decision records (ADRs), system environment variables, staging endpoints, database credentials, or git repository commit hashes..."
                   className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all leading-relaxed"
                 />
+              </div>
+
+              {/* 2. INSERT RICH MEDIA, PDFS, DOCS & VIDEOS */}
+              <div className="pt-5 space-y-4">
+                {/* Header with Upload Actions */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
+                      <Paperclip className="w-4 h-4 text-indigo-600" />
+                      <span>Vault Media & Documents ({vaultAttachments.length})</span>
+                    </h4>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Upload diagrams, PDFs, documentation, and videos for immediate in-modal preview
+                    </p>
+                  </div>
+
+                  {canManageProducts && (
+                    <div className="flex items-center gap-2">
+                      <input
+                        ref={vaultFileInputRef}
+                        type="file"
+                        multiple
+                        accept="image/*,application/pdf,video/*,.doc,.docx,.txt,.md,.json,.csv,.zip,.yaml,.yml"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files.length > 0) {
+                            handleUploadVaultFiles(e.target.files);
+                            e.target.value = "";
+                          }
+                        }}
+                        className="hidden"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => vaultFileInputRef.current?.click()}
+                        disabled={uploadingVaultFile}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                      >
+                        <UploadCloud className="w-3.5 h-3.5" />
+                        <span>{uploadingVaultFile ? "Uploading..." : "Upload Files / Media"}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setUrlInputOpen(!urlInputOpen)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                      >
+                        <Link2 className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>Attach via URL</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Upload Error Alert */}
+                {vaultUploadError && (
+                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                      <span>{vaultUploadError}</span>
+                    </div>
+                    <button onClick={() => setVaultUploadError(null)} className="text-rose-500 hover:text-rose-700">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+
+                {/* External URL Insertion Bar */}
+                {urlInputOpen && (
+                  <div className="p-4 rounded-xl border border-indigo-200 bg-indigo-50/40 space-y-3 animate-in fade-in duration-150">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
+                        <Link2 className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>Attach External Media or Cloud Resource URL</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setUrlInputOpen(false)}
+                        className="text-slate-400 hover:text-slate-600"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <input
+                        type="url"
+                        placeholder="Resource URL (e.g., https://.../architecture.png or Loom / PDF link)"
+                        value={urlInputValue}
+                        onChange={(e) => setUrlInputValue(e.target.value)}
+                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Optional Title / Label (e.g. System Microservices Diagram)"
+                        value={urlInputName}
+                        onChange={(e) => setUrlInputName(e.target.value)}
+                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                      />
+                    </div>
+
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setUrlInputOpen(false)}
+                        className="px-3 py-1 text-xs text-slate-600 hover:bg-white rounded-lg transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleAddUrlAttachment}
+                        disabled={!urlInputValue.trim()}
+                        className="px-3.5 py-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors"
+                      >
+                        Add Attachment
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Drag & Drop Upload Zone */}
+                {canManageProducts && (
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setDragOverVault(true);
+                    }}
+                    onDragLeave={() => setDragOverVault(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setDragOverVault(false);
+                      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                        handleUploadVaultFiles(e.dataTransfer.files);
+                      }
+                    }}
+                    onClick={() => vaultFileInputRef.current?.click()}
+                    className={`border-2 border-dashed rounded-2xl p-5 text-center transition-all cursor-pointer ${
+                      dragOverVault
+                        ? "border-indigo-500 bg-indigo-50/70 scale-[0.99]"
+                        : "border-slate-200 hover:border-indigo-300 hover:bg-slate-50/70 bg-slate-50/30"
+                    }`}
+                  >
+                    <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-2 border border-indigo-100">
+                      <UploadCloud className="w-5 h-5" />
+                    </div>
+                    <p className="text-xs font-bold text-slate-800">
+                      Drag & drop images, PDFs, documents, or videos here
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Or click to browse from your device &bull; Supports PNG, JPG, SVG, PDF, MP4, WebM, DOCX, TXT
+                    </p>
+                  </div>
+                )}
+
+                {/* Uploading Spinner */}
+                {uploadingVaultFile && (
+                  <div className="p-4 rounded-xl bg-indigo-50 border border-indigo-200 text-center flex items-center justify-center gap-2 text-xs font-semibold text-indigo-800">
+                    <RefreshCw className="w-4 h-4 animate-spin text-indigo-600" />
+                    <span>Processing and uploading vault media asset...</span>
+                  </div>
+                )}
+
+                {/* 3. ATTACHMENT VIEWERS (Images, PDFs, Videos, Docs - FULLY VISIBLE INSIDE MODAL) */}
+                {vaultAttachments.length === 0 ? (
+                  <div className="py-8 text-center text-slate-400 text-xs border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+                    <Layers className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="font-semibold text-slate-600">No media attachments in this vault yet.</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Upload diagrams, system PDFs, or product videos above to render them directly inside this vault.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {vaultAttachments.map((att, idx) => (
+                      <div
+                        key={att.id || idx}
+                        className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden transition-all hover:border-slate-300"
+                      >
+                        {/* Attachment Item Header Bar */}
+                        <div className="px-4 py-3 bg-slate-50/90 border-b border-slate-100 flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                            <div className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 shrink-0">
+                              {att.type === "image" && <ImageIcon className="w-4 h-4 text-emerald-600" />}
+                              {att.type === "pdf" && <FileText className="w-4 h-4 text-rose-600" />}
+                              {att.type === "video" && <Film className="w-4 h-4 text-indigo-600" />}
+                              {att.type === "document" && <FileText className="w-4 h-4 text-blue-600" />}
+                            </div>
+
+                            <div className="min-w-0">
+                              <h5 className="font-bold text-xs text-slate-900 truncate" title={att.name}>
+                                {att.name}
+                              </h5>
+                              <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5">
+                                <span className="uppercase font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-100">
+                                  {att.type}
+                                </span>
+                                {att.size && <span>{formatFileSize(att.size)}</span>}
+                                {att.uploadedAt && <span>&bull; {formatDate(att.uploadedAt)}</span>}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <a
+                              href={att.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"
+                              title="Open in new window"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </a>
+
+                            <a
+                              href={att.url}
+                              download={att.name}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"
+                              title="Download asset"
+                            >
+                              <Download className="w-4 h-4" />
+                            </a>
+
+                            {canManageProducts && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveAttachment(att.id)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                title="Remove attachment"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* FULL PREVIEW BODY BASED ON TYPE */}
+                        <div className="p-3 bg-slate-50/30">
+                          {/* 1. IMAGE PREVIEW */}
+                          {att.type === "image" && (
+                            <div className="rounded-xl overflow-hidden bg-slate-900/5 border border-slate-200/80 p-2 flex justify-center items-center">
+                              <img
+                                src={att.url}
+                                alt={att.name}
+                                className="max-h-[460px] w-auto max-w-full rounded-lg object-contain shadow-xs hover:scale-[1.01] transition-transform duration-200"
+                              />
+                            </div>
+                          )}
+
+                          {/* 2. PDF VIEWER */}
+                          {att.type === "pdf" && (
+                            <div className="rounded-xl overflow-hidden border border-slate-200 bg-white shadow-inner">
+                              <iframe
+                                src={att.url}
+                                title={att.name}
+                                className="w-full h-[480px] rounded-xl bg-white border-none"
+                              />
+                            </div>
+                          )}
+
+                          {/* 3. VIDEO PLAYER */}
+                          {att.type === "video" && (
+                            <div className="rounded-xl overflow-hidden border border-slate-900 bg-black shadow-md flex justify-center">
+                              <video
+                                controls
+                                preload="metadata"
+                                src={att.url}
+                                className="w-full max-h-[440px] rounded-xl object-contain bg-black"
+                              >
+                                Your browser does not support HTML5 video streaming.
+                              </video>
+                            </div>
+                          )}
+
+                          {/* 4. DOCUMENT / CODE / ARCHIVE */}
+                          {att.type === "document" && (
+                            <div className="p-4 rounded-xl border border-slate-200 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100 shadow-2xs">
+                                  <FileText className="w-6 h-6" />
+                                </div>
+                                <div>
+                                  <p className="text-xs font-bold text-slate-900">{att.name}</p>
+                                  <p className="text-[11px] text-slate-500 mt-0.5">
+                                    {formatFileSize(att.size)} &bull; {att.mimeType || "Document Resource"}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <a
+                                  href={att.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5 text-indigo-600" />
+                                  <span>View Document</span>
+                                </a>
+
+                                <a
+                                  href={att.url}
+                                  download={att.name}
+                                  className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                  <span>Download</span>
+                                </a>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-3.5 border-t border-slate-100 bg-slate-50/70 flex justify-end gap-2.5">
-              <button
-                type="button"
-                onClick={() => setVaultProduct(null)}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors"
-              >
-                Cancel
-              </button>
-              {canManageProducts && (
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/80 flex items-center justify-between shrink-0">
+              <div className="text-[11px] text-slate-500 font-medium">
+                {vaultAttachments.length} asset{vaultAttachments.length === 1 ? "" : "s"} linked &bull; Saved to encrypted technical vault
+              </div>
+
+              <div className="flex items-center gap-2.5">
                 <button
                   type="button"
-                  onClick={handleSaveVault}
-                  disabled={isSubmitting}
-                  className="px-4 py-2 rounded-xl bg-indigo-600 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-sm"
+                  onClick={() => setVaultProduct(null)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
                 >
-                  {isSubmitting ? "Saving..." : "Save Specifications"}
+                  Cancel
                 </button>
-              )}
+
+                {canManageProducts && (
+                  <button
+                    type="button"
+                    onClick={handleSaveVault}
+                    disabled={isSubmitting || uploadingVaultFile}
+                    className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-xs font-bold text-white transition-colors shadow-xs cursor-pointer flex items-center gap-1.5"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Saving Vault...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Shield className="w-3.5 h-3.5" />
+                        <span>Save Specifications & Assets</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

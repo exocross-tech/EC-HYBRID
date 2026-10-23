@@ -102,9 +102,10 @@ export async function GET() {
       clientsWithServices.forEach((c) => {
         const companyKey = c.company?.trim() || c.name;
 
-        // 1. Contracted Service Projects Volume (dynamically tracks project valuations from Projects tab)
+        // 1. Contracted Service Projects Volume (exclude projects put ON_HOLD)
         let projectVolume = 0;
-        c.projects.forEach((proj) => {
+        const activeOrBillableProjects = c.projects.filter((p) => p.status !== "ON_HOLD");
+        activeOrBillableProjects.forEach((proj) => {
           projectVolume += (proj.budget && proj.budget > 0) ? proj.budget : 0;
         });
 
@@ -129,7 +130,7 @@ export async function GET() {
           };
         }
         companyMap[companyKey].revenue += totalRev;
-        companyMap[companyKey].projectCount += c.projects.length;
+        companyMap[companyKey].projectCount += activeOrBillableProjects.length;
       });
 
       const clientServiceShare = Object.values(companyMap)
