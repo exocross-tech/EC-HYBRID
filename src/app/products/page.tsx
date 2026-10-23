@@ -105,6 +105,16 @@ function formatFileSize(bytes?: number): string {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
+function formatVaultTimestamp(isoStr?: string): string {
+  if (!isoStr) return "";
+  try {
+    const d = new Date(isoStr);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return "";
+  }
+}
+
 export interface ProductLicense {
   id: string;
   clientId: string;
@@ -525,34 +535,29 @@ export default function ProductsPage() {
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const formData = new FormData();
-        formData.append("file", file);
 
-        const res = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
+        // Read file as Base64 Data URL directly in browser (zero server filesystem dependency, 100% resilient)
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error(`Failed to read file: ${file.name}`));
+          reader.readAsDataURL(file);
         });
 
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || `Failed to upload ${file.name}`);
-        }
-
-        const data = await res.json();
         newAttachments.push({
           id: `att_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-          name: data.name || file.name,
-          type: detectAttachmentType(data.name || file.name, data.mimeType || file.type),
-          mimeType: data.mimeType || file.type,
-          url: data.url,
-          size: data.size || file.size,
+          name: file.name,
+          type: detectAttachmentType(file.name, file.type),
+          mimeType: file.type || "application/octet-stream",
+          url: dataUrl,
+          size: file.size,
           uploadedAt: new Date().toISOString(),
         });
       }
 
       setVaultAttachments((prev) => [...prev, ...newAttachments]);
     } catch (err: any) {
-      setVaultUploadError(err.message || "Failed to upload file(s)");
+      setVaultUploadError(err.message || "Failed to read and attach file(s)");
     } finally {
       setUploadingVaultFile(false);
     }
@@ -1686,7 +1691,7 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* MODAL 2: Product Architecture & Technical Vault Modal (Expanded max-w-5xl with Rich Media & Full Viewers) */}
+      {/* MODAL 2: Product Architecture & Technical Vault Canvas Modal (Full-Height Canvas + WhatsApp Chat Media Stream + Bottom Actions) */}
       {vaultProduct && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 overflow-y-auto animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden">
@@ -1717,21 +1722,44 @@ export default function ProductsPage() {
               </button>
             </div>
 
-            {/* Modal Body - Fully Scrollable with Smooth Behavior */}
-            <div className="p-5 sm:p-6 space-y-6 overflow-y-auto max-h-[calc(92vh-140px)] divide-y divide-slate-100">
-              {/* Architecture & Security Overview Banner */}
-              <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3.5 text-xs text-amber-950 flex items-start gap-3 shadow-2xs">
+            {/* Modal Body: Full-Height Interactive Canvas with Drag-and-Drop and WhatsApp Stream */}
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOverVault(true);
+              }}
+              onDragLeave={() => setDragOverVault(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOverVault(false);
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                  handleUploadVaultFiles(e.dataTransfer.files);
+                }
+              }}
+              className="relative flex-1 overflow-y-auto p-5 sm:p-6 space-y-4 max-h-[calc(92vh-140px)] min-h-[520px] bg-slate-50/40"
+            >
+              {/* Drag & drop overlay when dragging files over canvas */}
+              {dragOverVault && (
+                <div className="absolute inset-0 z-30 bg-indigo-600/10 backdrop-blur-xs border-2 border-dashed border-indigo-500 rounded-xl flex flex-col items-center justify-center p-6 text-center animate-in fade-in">
+                  <UploadCloud className="w-12 h-12 text-indigo-600 animate-bounce mb-2" />
+                  <p className="text-sm font-bold text-indigo-950">Drop files anywhere onto this canvas</p>
+                  <p className="text-xs text-indigo-700">Images, PDFs, documents, or videos will be attached directly to this vault stream</p>
+                </div>
+              )}
+
+              {/* Architecture Overview Banner */}
+              <div className="bg-amber-50/80 border border-amber-200/80 rounded-xl p-3 text-xs text-amber-950 flex items-start gap-2.5 shadow-2xs">
                 <Shield className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                <div className="space-y-0.5 leading-relaxed">
-                  <p className="font-bold">Proprietary Technology & Architecture Repository</p>
-                  <p className="text-amber-800/90 text-[11px]">
-                    Centralized technical documentation, system architectural diagrams, interactive specification PDFs, sprint demo videos, environment variables, and git repositories.
-                  </p>
+                <div className="leading-relaxed">
+                  <span className="font-bold">Proprietary Technology & Architecture Canvas: </span>
+                  <span className="text-amber-900/90 text-[11px]">
+                    Document blueprints, ADRs, and paste links. Any uploaded images, PDFs, demo videos, or specs appear directly inside this canvas stream below.
+                  </span>
                 </div>
               </div>
 
-              {/* 1. TECHNICAL SPECIFICATIONS & NOTES */}
-              <div className="pt-4 space-y-2">
+              {/* Canvas Notes Editor */}
+              <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                     <FileCode className="w-3.5 h-3.5 text-indigo-600" />
@@ -1745,12 +1773,12 @@ export default function ProductsPage() {
                         setCopiedVault(true);
                         setTimeout(() => setCopiedVault(false), 2000);
                       }}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 hover:text-indigo-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-medium text-slate-600 hover:text-indigo-600 hover:bg-slate-200/60 transition-colors cursor-pointer"
                     >
                       {copiedVault ? (
                         <>
                           <Check className="w-3.5 h-3.5 text-emerald-600" />
-                          <span className="text-emerald-600 font-semibold">Copied to Clipboard</span>
+                          <span className="text-emerald-600 font-semibold">Copied</span>
                         </>
                       ) : (
                         <>
@@ -1763,316 +1791,168 @@ export default function ProductsPage() {
                 </div>
 
                 <textarea
-                  rows={6}
+                  rows={vaultAttachments.length > 0 ? 8 : 14}
                   value={vaultText}
                   onChange={(e) => setVaultText(e.target.value)}
-                  placeholder="Insert architecture decision records (ADRs), system environment variables, staging endpoints, database credentials, or git repository commit hashes..."
-                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all leading-relaxed"
+                  placeholder="Refer websites:&#10;1. Sketchboard - https://sketchboard.me&#10;&#10;Technical specifications, ADR notes, staging credentials, git branches, or architecture specs..."
+                  className="w-full p-4 bg-white border border-slate-200 rounded-xl text-xs font-mono text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all leading-relaxed shadow-xs resize-y"
                 />
               </div>
 
-              {/* 2. INSERT RICH MEDIA, PDFS, DOCS & VIDEOS */}
-              <div className="pt-5 space-y-4">
-                {/* Header with Upload Actions */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
-                      <Paperclip className="w-4 h-4 text-indigo-600" />
-                      <span>Vault Media & Documents ({vaultAttachments.length})</span>
-                    </h4>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Upload diagrams, PDFs, documentation, and videos for immediate in-modal preview
-                    </p>
-                  </div>
-
-                  {canManageProducts && (
-                    <div className="flex items-center gap-2">
-                      <input
-                        ref={vaultFileInputRef}
-                        type="file"
-                        multiple
-                        accept="image/*,application/pdf,video/*,.doc,.docx,.txt,.md,.json,.csv,.zip,.yaml,.yml"
-                        onChange={(e) => {
-                          if (e.target.files && e.target.files.length > 0) {
-                            handleUploadVaultFiles(e.target.files);
-                            e.target.value = "";
-                          }
-                        }}
-                        className="hidden"
-                      />
-
-                      <button
-                        type="button"
-                        onClick={() => vaultFileInputRef.current?.click()}
-                        disabled={uploadingVaultFile}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-                      >
-                        <UploadCloud className="w-3.5 h-3.5" />
-                        <span>{uploadingVaultFile ? "Uploading..." : "Upload Files / Media"}</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setUrlInputOpen(!urlInputOpen)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-                      >
-                        <Link2 className="w-3.5 h-3.5 text-indigo-600" />
-                        <span>Attach via URL</span>
-                      </button>
-                    </div>
-                  )}
+              {/* Uploading indicator */}
+              {uploadingVaultFile && (
+                <div className="p-3.5 rounded-xl bg-indigo-50 border border-indigo-200 text-xs font-semibold text-indigo-800 flex items-center justify-center gap-2 animate-pulse">
+                  <RefreshCw className="w-4 h-4 animate-spin text-indigo-600" />
+                  <span>Attaching asset to canvas...</span>
                 </div>
+              )}
 
-                {/* Upload Error Alert */}
-                {vaultUploadError && (
-                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                      <span>{vaultUploadError}</span>
-                    </div>
-                    <button onClick={() => setVaultUploadError(null)} className="text-rose-500 hover:text-rose-700">
-                      <X className="w-3.5 h-3.5" />
-                    </button>
+              {/* Error banner if upload error */}
+              {vaultUploadError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>{vaultUploadError}</span>
                   </div>
-                )}
+                  <button onClick={() => setVaultUploadError(null)} className="text-rose-500 hover:text-rose-700">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
 
-                {/* External URL Insertion Bar */}
-                {urlInputOpen && (
-                  <div className="p-4 rounded-xl border border-indigo-200 bg-indigo-50/40 space-y-3 animate-in fade-in duration-150">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
-                        <Link2 className="w-3.5 h-3.5 text-indigo-600" />
-                        <span>Attach External Media or Cloud Resource URL</span>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setUrlInputOpen(false)}
-                        className="text-slate-400 hover:text-slate-600"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      <input
-                        type="url"
-                        placeholder="Resource URL (e.g., https://.../architecture.png or Loom / PDF link)"
-                        value={urlInputValue}
-                        onChange={(e) => setUrlInputValue(e.target.value)}
-                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Optional Title / Label (e.g. System Microservices Diagram)"
-                        value={urlInputName}
-                        onChange={(e) => setUrlInputName(e.target.value)}
-                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                      />
-                    </div>
-
-                    <div className="flex justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setUrlInputOpen(false)}
-                        className="px-3 py-1 text-xs text-slate-600 hover:bg-white rounded-lg transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleAddUrlAttachment}
-                        disabled={!urlInputValue.trim()}
-                        className="px-3.5 py-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors"
-                      >
-                        Add Attachment
-                      </button>
-                    </div>
+              {/* WhatsApp-Style Attached Media Stream inside Canvas */}
+              {vaultAttachments.length > 0 && (
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between text-xs text-slate-500 font-semibold px-1">
+                    <span className="flex items-center gap-1.5 uppercase tracking-wider text-[11px] text-slate-600">
+                      <Paperclip className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Attached Media & Documents Stream ({vaultAttachments.length})</span>
+                    </span>
+                    <span className="text-[10px] text-slate-400">WhatsApp-style canvas cards</span>
                   </div>
-                )}
 
-                {/* Drag & Drop Upload Zone */}
-                {canManageProducts && (
-                  <div
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      setDragOverVault(true);
-                    }}
-                    onDragLeave={() => setDragOverVault(false)}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      setDragOverVault(false);
-                      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                        handleUploadVaultFiles(e.dataTransfer.files);
-                      }
-                    }}
-                    onClick={() => vaultFileInputRef.current?.click()}
-                    className={`border-2 border-dashed rounded-2xl p-5 text-center transition-all cursor-pointer ${
-                      dragOverVault
-                        ? "border-indigo-500 bg-indigo-50/70 scale-[0.99]"
-                        : "border-slate-200 hover:border-indigo-300 hover:bg-slate-50/70 bg-slate-50/30"
-                    }`}
-                  >
-                    <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-2 border border-indigo-100">
-                      <UploadCloud className="w-5 h-5" />
-                    </div>
-                    <p className="text-xs font-bold text-slate-800">
-                      Drag & drop images, PDFs, documents, or videos here
-                    </p>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Or click to browse from your device &bull; Supports PNG, JPG, SVG, PDF, MP4, WebM, DOCX, TXT
-                    </p>
-                  </div>
-                )}
-
-                {/* Uploading Spinner */}
-                {uploadingVaultFile && (
-                  <div className="p-4 rounded-xl bg-indigo-50 border border-indigo-200 text-center flex items-center justify-center gap-2 text-xs font-semibold text-indigo-800">
-                    <RefreshCw className="w-4 h-4 animate-spin text-indigo-600" />
-                    <span>Processing and uploading vault media asset...</span>
-                  </div>
-                )}
-
-                {/* 3. ATTACHMENT VIEWERS (Images, PDFs, Videos, Docs - FULLY VISIBLE INSIDE MODAL) */}
-                {vaultAttachments.length === 0 ? (
-                  <div className="py-8 text-center text-slate-400 text-xs border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-                    <Layers className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                    <p className="font-semibold text-slate-600">No media attachments in this vault yet.</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      Upload diagrams, system PDFs, or product videos above to render them directly inside this vault.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {vaultAttachments.map((att, idx) => (
+                  {/* Chat-style stream */}
+                  <div className="space-y-3">
+                    {vaultAttachments.map((att) => (
                       <div
-                        key={att.id || idx}
-                        className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden transition-all hover:border-slate-300"
+                        key={att.id}
+                        className="max-w-3xl bg-white rounded-2xl rounded-tl-sm border border-slate-200 shadow-xs p-3 transition-all hover:border-slate-300 hover:shadow-sm"
                       >
-                        {/* Attachment Item Header Bar */}
-                        <div className="px-4 py-3 bg-slate-50/90 border-b border-slate-100 flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                            <div className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 shrink-0">
-                              {att.type === "image" && <ImageIcon className="w-4 h-4 text-emerald-600" />}
-                              {att.type === "pdf" && <FileText className="w-4 h-4 text-rose-600" />}
-                              {att.type === "video" && <Film className="w-4 h-4 text-indigo-600" />}
-                              {att.type === "document" && <FileText className="w-4 h-4 text-blue-600" />}
+                        {/* Bubble Header */}
+                        <div className="flex items-center justify-between gap-3 mb-2.5 pb-2 border-b border-slate-100 text-xs">
+                          <div className="flex items-center gap-2 min-w-0 pr-2">
+                            <div className="p-1 rounded-md bg-slate-100 text-slate-700 shrink-0">
+                              {att.type === "image" && <ImageIcon className="w-3.5 h-3.5 text-emerald-600" />}
+                              {att.type === "pdf" && <FileText className="w-3.5 h-3.5 text-rose-600" />}
+                              {att.type === "video" && <Film className="w-3.5 h-3.5 text-indigo-600" />}
+                              {att.type === "document" && <FileText className="w-3.5 h-3.5 text-blue-600" />}
                             </div>
-
-                            <div className="min-w-0">
-                              <h5 className="font-bold text-xs text-slate-900 truncate" title={att.name}>
-                                {att.name}
-                              </h5>
-                              <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5">
-                                <span className="uppercase font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-100">
-                                  {att.type}
-                                </span>
-                                {att.size && <span>{formatFileSize(att.size)}</span>}
-                                {att.uploadedAt && <span>&bull; {formatDate(att.uploadedAt)}</span>}
-                              </div>
-                            </div>
+                            <span className="font-bold text-slate-900 truncate" title={att.name}>
+                              {att.name}
+                            </span>
+                            <span className="uppercase text-[9px] font-bold px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-100 shrink-0">
+                              {att.type}
+                            </span>
                           </div>
 
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <a
-                              href={att.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"
-                              title="Open in new window"
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                            </a>
+                          <div className="flex items-center gap-2 shrink-0 text-slate-400 text-[11px]">
+                            {att.size && <span>{formatFileSize(att.size)}</span>}
+                            {att.uploadedAt && <span>{formatVaultTimestamp(att.uploadedAt)}</span>}
 
-                            <a
-                              href={att.url}
-                              download={att.name}
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"
-                              title="Download asset"
-                            >
-                              <Download className="w-4 h-4" />
-                            </a>
-
-                            {canManageProducts && (
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveAttachment(att.id)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                                title="Remove attachment"
+                            <div className="flex items-center gap-1 ml-1 border-l border-slate-200 pl-1.5">
+                              <a
+                                href={att.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-slate-100 transition-colors"
+                                title="Open in new window"
                               >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            )}
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </a>
+                              <a
+                                href={att.url}
+                                download={att.name}
+                                className="p-1 rounded text-slate-400 hover:text-emerald-600 hover:bg-slate-100 transition-colors"
+                                title="Download asset"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                              </a>
+                              {canManageProducts && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveAttachment(att.id)}
+                                  className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                  title="Delete attachment"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
 
-                        {/* FULL PREVIEW BODY BASED ON TYPE */}
-                        <div className="p-3 bg-slate-50/30">
-                          {/* 1. IMAGE PREVIEW */}
+                        {/* In-Bubble Preview Content */}
+                        <div>
                           {att.type === "image" && (
-                            <div className="rounded-xl overflow-hidden bg-slate-900/5 border border-slate-200/80 p-2 flex justify-center items-center">
+                            <div className="rounded-xl overflow-hidden bg-slate-950/5 border border-slate-200/80 p-1.5 flex justify-center items-center">
                               <img
                                 src={att.url}
                                 alt={att.name}
-                                className="max-h-[460px] w-auto max-w-full rounded-lg object-contain shadow-xs hover:scale-[1.01] transition-transform duration-200"
+                                className="max-h-[440px] w-auto max-w-full rounded-lg object-contain"
                               />
                             </div>
                           )}
 
-                          {/* 2. PDF VIEWER */}
                           {att.type === "pdf" && (
-                            <div className="rounded-xl overflow-hidden border border-slate-200 bg-white shadow-inner">
+                            <div className="rounded-xl overflow-hidden border border-slate-200 bg-white">
                               <iframe
                                 src={att.url}
                                 title={att.name}
-                                className="w-full h-[480px] rounded-xl bg-white border-none"
+                                className="w-full h-[440px] rounded-xl bg-white border-none"
                               />
                             </div>
                           )}
 
-                          {/* 3. VIDEO PLAYER */}
                           {att.type === "video" && (
-                            <div className="rounded-xl overflow-hidden border border-slate-900 bg-black shadow-md flex justify-center">
+                            <div className="rounded-xl overflow-hidden border border-slate-900 bg-black flex justify-center">
                               <video
                                 controls
                                 preload="metadata"
                                 src={att.url}
-                                className="w-full max-h-[440px] rounded-xl object-contain bg-black"
+                                className="w-full max-h-[420px] rounded-xl object-contain bg-black"
                               >
                                 Your browser does not support HTML5 video streaming.
                               </video>
                             </div>
                           )}
 
-                          {/* 4. DOCUMENT / CODE / ARCHIVE */}
                           {att.type === "document" && (
-                            <div className="p-4 rounded-xl border border-slate-200 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 flex items-center justify-between gap-3">
                               <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100 shadow-2xs">
-                                  <FileText className="w-6 h-6" />
+                                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
+                                  <FileText className="w-5 h-5" />
                                 </div>
                                 <div>
-                                  <p className="text-xs font-bold text-slate-900">{att.name}</p>
+                                  <p className="text-xs font-bold text-slate-800">{att.name}</p>
                                   <p className="text-[11px] text-slate-500 mt-0.5">
-                                    {formatFileSize(att.size)} &bull; {att.mimeType || "Document Resource"}
+                                    {formatFileSize(att.size)} &bull; Document Resource
                                   </p>
                                 </div>
                               </div>
-
                               <div className="flex items-center gap-2">
                                 <a
                                   href={att.url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                                  className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5"
                                 >
                                   <ExternalLink className="w-3.5 h-3.5 text-indigo-600" />
-                                  <span>View Document</span>
+                                  <span>View</span>
                                 </a>
-
                                 <a
                                   href={att.url}
                                   download={att.name}
-                                  className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
+                                  className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold flex items-center gap-1.5"
                                 >
                                   <Download className="w-3.5 h-3.5" />
                                   <span>Download</span>
@@ -2084,16 +1964,113 @@ export default function ProductsPage() {
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+
+              {/* Inline URL Input Drawer when toggled from bottom bar */}
+              {urlInputOpen && (
+                <div className="p-4 rounded-xl border border-indigo-200 bg-indigo-50/60 space-y-3 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
+                      <Link2 className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Attach External Media or Cloud Resource URL</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setUrlInputOpen(false)}
+                      className="text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <input
+                      type="url"
+                      placeholder="Resource URL (e.g., https://.../diagram.png or Loom / PDF link)"
+                      value={urlInputValue}
+                      onChange={(e) => setUrlInputValue(e.target.value)}
+                      className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Optional Title / Label (e.g. Microservices Diagram)"
+                      value={urlInputName}
+                      onChange={(e) => setUrlInputName(e.target.value)}
+                      className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setUrlInputOpen(false)}
+                      className="px-3 py-1 text-xs text-slate-600 hover:bg-white rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAddUrlAttachment}
+                      disabled={!urlInputValue.trim()}
+                      className="px-3.5 py-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors"
+                    >
+                      Add to Canvas
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/80 flex items-center justify-between shrink-0">
-              <div className="text-[11px] text-slate-500 font-medium">
-                {vaultAttachments.length} asset{vaultAttachments.length === 1 ? "" : "s"} linked &bull; Saved to encrypted technical vault
+            {/* Modal Footer - Single line containing Upload / Attach buttons on left, Cancel / Save on right */}
+            <div className="px-6 py-3.5 border-t border-slate-100 bg-slate-50/90 flex flex-wrap items-center justify-between gap-3 shrink-0">
+              {/* Left: Upload and Attach Buttons on the same line */}
+              <div className="flex items-center gap-2">
+                {canManageProducts && (
+                  <>
+                    <input
+                      ref={vaultFileInputRef}
+                      type="file"
+                      multiple
+                      accept="image/*,application/pdf,video/*,.doc,.docx,.txt,.md,.json,.csv,.zip,.yaml,.yml"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          handleUploadVaultFiles(e.target.files);
+                          e.target.value = "";
+                        }
+                      }}
+                      className="hidden"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => vaultFileInputRef.current?.click()}
+                      disabled={uploadingVaultFile}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                    >
+                      <UploadCloud className="w-3.5 h-3.5" />
+                      <span>Upload Files / Media</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setUrlInputOpen(!urlInputOpen)}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                    >
+                      <Link2 className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Attach via URL</span>
+                    </button>
+                  </>
+                )}
+
+                {vaultAttachments.length > 0 && (
+                  <span className="text-xs text-slate-500 font-medium ml-1">
+                    {vaultAttachments.length} asset{vaultAttachments.length === 1 ? "" : "s"} on canvas
+                  </span>
+                )}
               </div>
 
+              {/* Right: Cancel & Save Buttons on the same line */}
               <div className="flex items-center gap-2.5">
                 <button
                   type="button"
@@ -2113,7 +2090,7 @@ export default function ProductsPage() {
                     {isSubmitting ? (
                       <>
                         <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        <span>Saving Vault...</span>
+                        <span>Saving Canvas...</span>
                       </>
                     ) : (
                       <>
