@@ -16,30 +16,59 @@ export async function GET(req: NextRequest) {
   const invoiceStatus = searchParams.get("status");
   const search = searchParams.get("search");
 
-  let whereClause: any = {};
+  const andConditions: any[] = [];
 
-  if (clientId) whereClause.clientId = clientId;
-  if (invoiceStatus) whereClause.status = invoiceStatus;
+  if (clientId) andConditions.push({ clientId });
+  if (invoiceStatus) andConditions.push({ status: invoiceStatus });
 
   if (search) {
-    whereClause.OR = [
-      { invoiceNumber: { contains: search } },
-      { description: { contains: search } },
-      { client: { name: { contains: search } } },
-      { client: { company: { contains: search } } },
-    ];
+    andConditions.push({
+      OR: [
+        { invoiceNumber: { contains: search } },
+        { description: { contains: search } },
+        { client: { name: { contains: search } } },
+        { client: { company: { contains: search } } },
+      ],
+    });
   }
 
   // Employee sees invoices for clients assigned to them or created by them
   if (user.role === "EMPLOYEE") {
-    whereClause.client = {
-      ...whereClause.client,
-      OR: [
-        { assignedToId: user.userId },
-        { createdById: user.userId },
-      ],
-    };
+    // Find project IDs where employee is assigned tasks
+    const employeeTasks = await prisma.task.findMany({
+      where: {
+        OR: [
+          { assignedToId: user.userId },
+          { assignees: { contains: user.userId } },
+        ],
+      },
+      select: { projectId: true },
+    });
+    const assignedProjectIds = Array.from(new Set(employeeTasks.map((t) => t.projectId)));
+
+    const projectsWithClients = await prisma.project.findMany({
+      where: { id: { in: assignedProjectIds }, clientId: { not: null } },
+      select: { clientId: true },
+    });
+    const assignedClientIds = Array.from(
+      new Set(projectsWithClients.map((p) => p.clientId).filter(Boolean) as string[])
+    );
+
+    const employeeAccessConditions: any[] = [
+      { client: { createdById: user.userId } },
+    ];
+
+    if (assignedClientIds.length > 0) {
+      employeeAccessConditions.push({ clientId: { in: assignedClientIds } });
+    }
+    if (assignedProjectIds.length > 0) {
+      employeeAccessConditions.push({ projectId: { in: assignedProjectIds } });
+    }
+
+    andConditions.push({ OR: employeeAccessConditions });
   }
+
+  const whereClause = andConditions.length > 0 ? { AND: andConditions } : {};
 
   try {
     const invoices = await prisma.invoice.findMany({
